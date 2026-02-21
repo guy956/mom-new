@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/app_state.dart';
 
 /// Marketplace screen - real-time Firestore data with dynamic categories
@@ -1258,26 +1260,36 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
     final appState = Provider.of<AppState>(context, listen: false);
     final currentUser = appState.currentUser;
 
-    // Prepare data for submission
-    final itemData = {
-      'title': _titleController.text.trim(),
-      'description': _descController.text.trim(),
-      'price': price,
-      'category': _selectedCategory,
-      'condition': _selectedCondition,
-      'location': _locationController.text.trim(),
-      'images': _selectedImages,
-      'status': 'pending', // Changed to pending for admin approval
-      'seller': currentUser?.fullName ?? 'משתמש',
-      'contact': currentUser?.phone ?? '',
-      'creatorId': currentUser?.id ?? '',
-      'creatorName': currentUser?.fullName ?? '',
-      'creatorEmail': currentUser?.email ?? '',
-      'creatorPhone': currentUser?.phone ?? '',
-    };
-
     // Submit to Firestore
     try {
+      // Upload images to Firebase Storage first
+      List<String> imageUrls = [];
+      if (_selectedImages.isNotEmpty) {
+        final storageService = StorageService();
+        imageUrls = await storageService.uploadMultipleImages(
+          filePaths: _selectedImages,
+          folder: 'marketplace/${currentUser?.id ?? 'anonymous'}',
+        );
+      }
+
+      // Prepare data for submission with uploaded image URLs
+      final itemData = {
+        'title': _titleController.text.trim(),
+        'description': _descController.text.trim(),
+        'price': price,
+        'category': _selectedCategory,
+        'condition': _selectedCondition,
+        'location': _locationController.text.trim(),
+        'images': imageUrls, // Use uploaded URLs instead of local paths
+        'status': 'pending', // Changed to pending for admin approval
+        'seller': currentUser?.fullName ?? 'משתמש',
+        'contact': currentUser?.phone ?? '',
+        'creatorId': currentUser?.id ?? '',
+        'creatorName': currentUser?.fullName ?? '',
+        'creatorEmail': currentUser?.email ?? '',
+        'creatorPhone': currentUser?.phone ?? '',
+      };
+
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       await firestoreService.addMarketplaceItem(itemData);
 
@@ -1316,19 +1328,49 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
     }
   }
 
-  void _pickImage() {
-    // TODO: Implement actual image picker
-    // For now, show a placeholder snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('בחירת תמונה - יישום עתידי',
-            style: TextStyle(fontFamily: 'Heebo')),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          // Add image path to the list (max 5 images)
+          if (_selectedImages.length < 5) {
+            _selectedImages.add(image.path);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('ניתן להעלות עד 5 תמונות',
+                    style: TextStyle(fontFamily: 'Heebo')),
+                backgroundColor: AppColors.primary,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה בבחירת תמונה: ${e.toString()}',
+                style: const TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
   }
 
   @override

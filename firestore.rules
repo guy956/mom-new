@@ -121,10 +121,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // User roles (RBAC) - admin write, authenticated read own
+    // User roles (RBAC) - admin only write, authenticated read own
     match /user_roles/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow write: if isAdmin() || (isAuthenticated() && isOwner(userId));
+      allow write: if isAdmin(); // SECURITY: Only admins can modify roles
     }
 
     // Activity log - admin only

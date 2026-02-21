@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/core/widgets/empty_state_widgets.dart';
 import 'package:mom_connect/core/widgets/loading_widgets.dart';
@@ -1250,6 +1251,17 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
     if (content.isEmpty && _selectedImagePath == null) return;
 
     try {
+      // Upload image to Firebase Storage if selected
+      String? imageUrl;
+      if (_selectedImagePath != null) {
+        final storageService = StorageService();
+        imageUrl = await storageService.uploadImage(
+          filePath: _selectedImagePath!,
+          folder: 'posts/${currentUser?.id ?? 'anonymous'}',
+          customFileName: _selectedImageName,
+        );
+      }
+
       // Prepare post data
       final postData = {
         'content': content,
@@ -1268,15 +1280,17 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         'creatorPhone': currentUser?.phone ?? '',
       };
 
-      // Add image if selected
-      if (_selectedImagePath != null) {
-        postData['images'] = [_selectedImagePath];
+      // Add uploaded image URL if available
+      if (imageUrl != null) {
+        postData['images'] = [imageUrl];
         postData['imageName'] = _selectedImageName ?? '';
       }
 
       await fs.addPost(postData);
 
+      if (!mounted) return;
       Navigator.pop(context);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('הפוסט נשלח לאישור ויפורסם בקרוב! 🎉', style: TextStyle(fontFamily: 'Heebo')),
@@ -1287,6 +1301,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('שגיאה בפרסום הפוסט: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
