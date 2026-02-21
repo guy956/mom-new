@@ -16,11 +16,24 @@ import 'package:mom_connect/services/feature_flag_service.dart';
 import 'package:mom_connect/services/tracking_service.dart';
 import 'package:mom_connect/services/accessibility_service.dart';
 import 'package:mom_connect/services/dynamic_config_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   // Catch ALL errors including async ones
   runZonedGuarded(() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Pre-load Heebo font via google_fonts package
+  // This registers the 'Heebo' font family so all fontFamily: 'Heebo' references work
+  GoogleFonts.config.allowRuntimeFetching = true;
+  GoogleFonts.pendingFonts([
+    GoogleFonts.heebo(),
+    GoogleFonts.heebo(fontWeight: FontWeight.w500),
+    GoogleFonts.heebo(fontWeight: FontWeight.w600),
+    GoogleFonts.heebo(fontWeight: FontWeight.w700),
+    GoogleFonts.heebo(fontWeight: FontWeight.w800),
+    GoogleFonts.heebo(fontWeight: FontWeight.w900),
+  ]);
 
   // Show visible errors in release mode (instead of blank)
   ErrorWidget.builder = (FlutterErrorDetails details) {
