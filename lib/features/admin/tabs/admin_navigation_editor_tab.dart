@@ -23,12 +23,12 @@ class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
             Icon(Icons.construction, color: Colors.orange.shade700),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text('פיצ'ר בפיתוח', style: TextStyle(fontFamily: 'Heebo')),
+              child: Text('פיצר בפיתוח', style: TextStyle(fontFamily: 'Heebo')),
             ),
           ],
         ),
         content: Text(
-          'הפיצ'ר "$featureName" נמצא כרגע בפיתוח ויהיה זמין בקרוב.',
+          'הפיצר "$featureName" נמצא כרגע בפיתוח ויהיה זמין בקרוב.',
           style: const TextStyle(fontFamily: 'Heebo'),
         ),
         actions: [
