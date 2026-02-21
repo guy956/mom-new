@@ -1,0 +1,187 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isModerator() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // App configuration - public read, admin write
+    match /app_config/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Admin config and subcollections
+    match /admin_config/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Feature flags - public read, admin write
+    match /feature_flags/{flag} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // UI configuration - public read, admin write
+    match /ui_config/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Dynamic sections - public read, admin full access
+    match /dynamic_sections/{section} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Content management - public read, admin full access
+    match /content_management/{content} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Users - authenticated read, owner or admin write
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // User subcollections
+    match /users/{userId}/{subcollection}/{doc} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    // Experts - public read, admin write
+    match /experts/{expertId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Events - public read, admin write
+    match /events/{eventId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || 
+        (isAuthenticated() && resource.data.creatorId == request.auth.uid);
+    }
+    
+    // Marketplace - public read, authenticated write own items
+    match /marketplace/{itemId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+    
+    // Tips - public read, admin write
+    match /tips/{tipId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Posts - public read, authenticated write
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+    
+    // Reports - authenticated create, admin read/update
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdmin() || isModerator();
+    }
+    
+    // Media library - public read, admin write
+    match /media_library/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // User roles (RBAC) - admin write, authenticated read own
+    match /user_roles/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAdmin() || (isAuthenticated() && isOwner(userId));
+    }
+
+    // Activity log - admin only
+    match /activity_log/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+    
+    // Push notifications - authenticated read own, admin write all
+    match /push_notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
+    }
+    
+    // Error logs - admin only
+    match /error_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if true; // Allow error reporting from client
+    }
+    
+    // Analytics - admin only
+    match /analytics/{doc} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Audit logs - admin only
+    match /admin_audit_log/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+    
+    // Chat messages - participants only
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+        get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+    }
+    
+    match /chats/{chatId}/messages/{messageId} {
+      allow read: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+      allow create: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.senderId == request.auth.uid || isAdmin());
+    }
+    
+    // Tracking data - owner or admin only
+    match /tracking/{userId}/{subcollection}/{doc} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    // Notifications - owner only
+    match /notifications/{userId}/{notificationId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+  }
+}

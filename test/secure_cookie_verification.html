@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Cookie Security Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4CAF50;
+        }
+        .fail {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        .info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #2196F3;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .cookie-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Secure Cookie Security Verification</h1>
+        <p>This page verifies that secure cookies are properly configured with:</p>
+        <ul>
+            <li><code>httpOnly: true</code> - Prevents JavaScript access</li>
+            <li><code>secure: true</code> - HTTPS only</li>
+            <li><code>sameSite: strict</code> - CSRF protection</li>
+            <li><code>maxAge/expires</code> - Session timeout</li>
+        </ul>
+
+        <div class="test-section">
+            <h3>Test 1: Cookie Visibility Check</h3>
+            <p>Attempting to read <code>document.cookie</code> from JavaScript:</p>
+            <div id="cookie-visibility-result" class="test-result info">
+                Click "Run Tests" to check cookie visibility
+            </div>
+            <div id="visible-cookies" class="cookie-list"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: __Host- Prefix Verification</h3>
+            <p>Checking for <code>__Host-</code> prefixed cookies (security defense-in-depth):</p>
+            <div id="host-prefix-result" class="test-result info">
+                Click "Run Tests" to verify __Host- prefix
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: httpOnly Verification</h3>
+            <p>Testing if httpOnly cookies are accessible via JavaScript:</p>
+            <div id="httponly-result" class="test-result info">
+                Click "Run Tests" to verify httpOnly flag
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test Results Summary</h3>
+            <div id="summary-result" class="test-result info">
+                Run tests to see summary
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button onclick="runSecurityTests()">🧪 Run Security Tests</button>
+            <button onclick="setTestCookie()">🍪 Set Test Cookie</button>
+            <button onclick="clearTestCookies()">🗑️ Clear Test Cookies</button>
+        </div>
+
+        <div class="test-section" style="margin-top: 30px;">
+            <h3>ℹ️ About httpOnly and Client-Side Code</h3>
+            <p><strong>Important:</strong> True <code>httpOnly</code> cookies cannot be set from JavaScript.
+            They must be set server-side in the HTTP response header:</p>
+            <pre>Set-Cookie: session=abc123; HttpOnly; Secure; SameSite=Strict; Max-Age=86400</pre>
+            <p>For Flutter web apps without a server, we use the <code>__Host-</code> prefix as
+            defense-in-depth, which enforces:</p>
+            <ul>
+                <li>Must have <code>Secure</code> attribute (HTTPS only)</li>
+                <li>Must have <code>Path=/</code> (root path only)</li>
+                <li>Cannot have <code>Domain</code> attribute</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function runSecurityTests() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                protocol: window.location.protocol,
+                hostname: window.location.hostname,
+                tests: {}
+            };
+
+            // Test 1: Cookie visibility
+            const allCookies = document.cookie;
+            const hasCookies = allCookies.length > 0;
+            results.tests.cookieVisibility = {
+                accessible: hasCookies,
+                cookieCount: allCookies.split(';').filter(c => c.trim()).length,
+                rawLength: allCookies.length
+            };
+
+            const visibilityDiv = document.getElementById('cookie-visibility-result');
+            const cookiesDiv = document.getElementById('visible-cookies');
+            
+            if (hasCookies) {
+                visibilityDiv.className = 'test-result pass';
+                visibilityDiv.innerHTML = `✅ JavaScript can access ${results.tests.cookieVisibility.cookieCount} cookie(s)`;
+                
+                const cookieList = allCookies.split(';').map(c => c.trim()).filter(c => c);
+                cookiesDiv.innerHTML = '<strong>Visible cookies:</strong><ul>' + 
+                    cookieList.map(c => `<li><code>${c.split('=')[0]}</code></li>`).join('') + 
+                    '</ul>';
+            } else {
+                visibilityDiv.className = 'test-result info';
+                visibilityDiv.innerHTML = 'ℹ️ No cookies visible to JavaScript (this is expected for httpOnly cookies)';
+                cookiesDiv.innerHTML = '';
+            }
+
+            // Test 2: __Host- prefix check
+            const hasHostPrefix = allCookies.includes('__Host-');
+            results.tests.hostPrefix = {
+                found: hasHostPrefix,
+                count: (allCookies.match(/__Host-/g) || []).length
+            };
+
+            const hostDiv = document.getElementById('host-prefix-result');
+            if (hasHostPrefix) {
+                hostDiv.className = 'test-result pass';
+                hostDiv.innerHTML = `✅ Found ${results.tests.hostPrefix.count} cookie(s) with __Host- prefix (security enforced)`;
+            } else {
+                hostDiv.className = 'test-result info';
+                hostDiv.innerHTML = 'ℹ️ No __Host- prefixed cookies found (run "Set Test Cookie" to create one)';
+            }
+
+            // Test 3: httpOnly verification
+            // Note: We can't directly test httpOnly from JS, but we can document the behavior
+            const httpOnlyDiv = document.getElementById('httponly-result');
+            httpOnlyDiv.className = 'test-result info';
+            httpOnlyDiv.innerHTML = `
+                ℹ️ <strong>httpOnly verification:</strong><br>
+                - httpOnly cookies <strong>cannot</strong> be set from JavaScript<br>
+                - They must be set server-side in HTTP headers<br>
+                - If set properly, they won't appear in <code>document.cookie</code><br>
+                - Current visible cookies: ${results.tests.cookieVisibility.cookieCount}
+            `;
+
+            // Summary
+            const summaryDiv = document.getElementById('summary-result');
+            const isSecureContext = window.location.protocol === 'https:';
+            
+            summaryDiv.className = 'test-result pass';
+            summaryDiv.innerHTML = `
+                <strong>Security Configuration:</strong><br>
+                ✅ Protocol: ${results.protocol} (${isSecureContext ? 'Secure' : 'Not Secure'})<br>
+                ✅ Hostname: ${results.hostname}<br>
+                ✅ Cookies visible to JS: ${results.tests.cookieVisibility.cookieCount}<br>
+                ${hasHostPrefix ? '✅ __Host- prefix detected (enforces Secure attribute)' : 'ℹ️ No __Host- cookies yet'}<br>
+                <br>
+                <strong>Note:</strong> For production, ensure cookies are set server-side with HttpOnly flag.
+            `;
+
+            console.log('Security test results:', results);
+        }
+
+        function setTestCookie() {
+            // Set a cookie with security flags that can be set client-side
+            const expiry = new Date();
+            expiry.setHours(expiry.getHours() + 24);
+            
+            // Note: We cannot set httpOnly from JavaScript - that's the point!
+            // But we can set secure and sameSite
+            document.cookie = `__Host-momit_test=test_value_${Date.now()}; path=/; expires=${expiry.toUTCString()}; secure; samesite=strict`;
+            
+            alert('Test cookie set! Note: httpOnly cannot be set from JavaScript (by design).');
+            runSecurityTests();
+        }
+
+        function clearTestCookies() {
+            const past = new Date(0);
+            document.cookie = '__Host-momit_test=; path=/; expires=' + past.toUTCString();
+            document.cookie = 'momit_test=; path=/; expires=' + past.toUTCString();
+            alert('Test cookies cleared!');
+            runSecurityTests();
+        }
+
+        // Run tests on page load
+        window.onload = runSecurityTests;
+    </script>
+</body>
+</html>

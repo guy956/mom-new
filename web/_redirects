@@ -1,0 +1,26 @@
+# Cloudflare Pages Redirects Configuration
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+# Force HTTPS (handled by Cloudflare automatically, but explicit doesn't hurt)
+http://* https://:splat 301!
+
+# Redirect www to non-www (when custom domain is configured)
+# https://www.momit.co.il/* https://momit.co.il/:splat 301
+
+# Canonical redirects - enforce trailing slash consistency
+/privacy /privacy.html 301
+/terms /terms.html 301
+
+# Legacy redirects (if any old URLs need redirecting)
+# /old-path /new-path 301
+
+# SEO: Redirect common typos or variations
+/about / 301
+/contact / 301
+/help / 301
+
+# SPA fallback - all routes to index.html for client-side routing
+/* /index.html 200
+
+# 404 handling (commented out - use SPA fallback above instead)
+# /* /404.html 404

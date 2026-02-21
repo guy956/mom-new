@@ -1,0 +1,139 @@
+# MOMIT Cloudflare Pages Deployment Checklist
+
+**Target URL:** https://momit.pages.dev  
+**Date:** _______________  
+**Deployed By:** _______________
+
+---
+
+## Pre-Deployment ✅
+
+### Configuration Files Verified
+- [ ] `web/_headers` exists with security headers
+- [ ] `web/_redirects` exists with SPA routing
+- [ ] `firebase.json` properly configured
+- [ ] `wrangler.toml` has correct project name
+- [ ] `.env` file created and populated
+
+### Environment Variables Set
+- [ ] `CLOUDFLARE_API_TOKEN` obtained from Cloudflare Dashboard
+- [ ] `CLOUDFLARE_ACCOUNT_ID` copied from dashboard
+- [ ] `CLOUDFLARE_PAGES_PROJECT_NAME=momit` set
+- [ ] Application `.env` file configured (ADMIN_EMAILS, JWT secrets, API keys)
+
+### Build Prerequisites
+- [ ] Flutter SDK installed (v3.24.0+)
+- [ ] Wrangler CLI installed (`npm install -g wrangler`)
+- [ ] Logged in to Cloudflare (`wrangler login`)
+- [ ] Dependencies installed (`flutter pub get`)
+
+---
+
+## Deployment Steps 🚀
+
+### 1. Build Application
+```bash
+flutter clean
+flutter pub get
+flutter build web --release --web-renderer html --no-tree-shake-icons --dart-define=ENV=production
+```
+- [ ] Build completed successfully
+- [ ] No errors in build output
+- [ ] Build directory: `build/web/`
+
+### 2. Verify Build Output
+- [ ] `build/web/index.html` exists
+- [ ] `build/web/_headers` exists (copied from web/)
+- [ ] `build/web/_redirects` exists (copied from web/)
+- [ ] `build/web/main.dart.js` exists
+- [ ] `build/web/flutter_service_worker.js` exists
+
+### 3. Deploy
+```bash
+# Option 1: Deploy script
+./deploy.sh production
+
+# Option 2: Wrangler direct
+npx wrangler pages deploy build/web --project-name=momit
+
+# Option 3: Python script
+python3 deploy_cf_pages.py
+```
+- [ ] Deployment command executed
+- [ ] No authentication errors
+- [ ] Deployment successful message received
+- [ ] Deployment URL displayed
+
+---
+
+## Post-Deployment Verification ✅
+
+### Site Accessibility
+- [ ] https://momit.pages.dev loads (HTTP 200)
+- [ ] No SSL certificate errors
+- [ ] Page loads within 5 seconds
+
+### Security Headers
+Run: `curl -I https://momit.pages.dev`
+- [ ] `X-Frame-Options: DENY` present
+- [ ] `X-Content-Type-Options: nosniff` present
+- [ ] `Referrer-Policy: strict-origin-when-cross-origin` present
+- [ ] `Strict-Transport-Security` present
+
+### SPA Routing
+- [ ] https://momit.pages.dev/privacy loads directly (no 404)
+- [ ] https://momit.pages.dev/terms loads directly (no 404)
+- [ ] Refreshing on any route works correctly
+- [ ] `/* /index.html 200` redirect working
+
+### Assets & Content
+- [ ] Logo/icon displays correctly
+- [ ] CSS styles applied
+- [ ] JavaScript functions (buttons clickable)
+- [ ] No 404 errors in browser console
+
+### Mobile Verification
+- [ ] Site responsive on mobile viewport
+- [ ] Touch interactions work
+- [ ] No horizontal scrolling issues
+
+---
+
+## Optional: Custom Domain Setup 🔗
+
+If setting up custom domain (e.g., momit.co.il):
+- [ ] Domain added in Cloudflare Pages settings
+- [ ] DNS records configured
+- [ ] SSL/TLS certificate issued
+- [ ] HTTPS enforced
+- [ ] `www` redirect configured (optional)
+
+---
+
+## Troubleshooting Notes 📝
+
+| Issue | Solution |
+|-------|----------|
+| Build fails | Check Flutter version, run `flutter doctor` |
+| Wrangler auth error | Run `wrangler login` or verify API token |
+| 404 on refresh | Check `_redirects` file has `/* /index.html 200` |
+| Missing headers | Verify `_headers` file copied to build/web/ |
+| Large bundle | Normal for Flutter web; ensure compression enabled |
+
+---
+
+## Deployment Complete! 🎉
+
+**Deployed URL:** _______________________________  
+**Deployment ID:** _______________________________  
+**Timestamp:** _______________________________
+
+### Sign-off
+- [ ] All checks passed
+- [ ] No critical issues found
+- [ ] Ready for production traffic
+
+**Notes:**
+_________________________________________________________________
+_________________________________________________________________
+_________________________________________________________________

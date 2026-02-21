@@ -1,0 +1,74 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Media vault - public read, admin write
+    match /media_vault/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Tips images - public read, admin write
+    match /tips/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // User uploads - owner write, public read
+    match /user_uploads/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Post images - authenticated write, public read
+    match /posts/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    // Profile pictures - owner write, public read
+    match /profile_pictures/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Marketplace images - authenticated write, public read
+    match /marketplace/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    // Event images - authenticated write, public read
+    match /events/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    // Chat attachments - participants only
+    match /chat_attachments/{chatId}/{allPaths=**} {
+      allow read: if isAuthenticated() && 
+        firestore.exists(/databases/(default)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+      allow write: if isAuthenticated() && 
+        firestore.exists(/databases/(default)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+    }
+    
+    // Default deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

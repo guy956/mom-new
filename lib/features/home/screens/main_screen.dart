@@ -1,0 +1,1541 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:mom_connect/core/constants/text_config.dart';
+import 'package:mom_connect/core/widgets/common_widgets.dart';
+import 'package:mom_connect/core/widgets/dialog_widgets.dart';
+import 'package:mom_connect/models/feature_flag_model.dart';
+import 'package:mom_connect/services/branding_config_service.dart';
+import 'package:mom_connect/services/feature_flag_service.dart';
+import 'package:mom_connect/features/feed/screens/feed_screen.dart';
+import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
+import 'package:mom_connect/features/events/screens/events_screen.dart';
+import 'package:mom_connect/features/chat/screens/chat_screen.dart';
+import 'package:mom_connect/features/profile/screens/profile_screen.dart';
+import 'package:mom_connect/features/marketplace/screens/marketplace_screen.dart';
+import 'package:mom_connect/features/auth/screens/welcome_screen.dart';
+import 'package:mom_connect/features/ai_chat/screens/ai_chat_screen.dart';
+import 'package:mom_connect/features/sos/screens/sos_screen.dart';
+import 'package:mom_connect/features/tips/screens/daily_tips_screen.dart';
+import 'package:mom_connect/features/mood/screens/mood_tracker_screen.dart';
+import 'package:mom_connect/features/experts/screens/experts_screen.dart';
+import 'package:mom_connect/features/whatsapp/screens/whatsapp_screen.dart';
+import 'package:mom_connect/features/gamification/screens/gamification_screen.dart';
+import 'package:mom_connect/features/album/screens/photo_album_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:mom_connect/services/app_state.dart';
+import 'package:mom_connect/services/auth_service.dart';
+import 'package:mom_connect/services/dynamic_config_service.dart';
+import 'package:mom_connect/features/accessibility/screens/accessibility_screen.dart';
+import 'package:mom_connect/features/legal/screens/legal_screen.dart';
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
+  int _currentIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late AnimationController _fabAnimController;
+
+  // Route mapping for quick access navigation
+  final Map<String, Widget Function()> _quickAccessRoutes = {
+    'aiChat': () => const AIChatScreen(),
+    'sos': () => const SOSScreen(),
+    'whatsapp': () => const WhatsAppIntegrationScreen(),
+    'marketplace': () => const MarketplaceScreen(),
+    'mood': () => const MoodTrackerScreen(),
+    'album': () => const PhotoAlbumScreen(),
+    'experts': () => const ExpertsScreen(),
+    'tips': () => const DailyTipsScreen(),
+    'gamification': () => const GamificationScreen(),
+  };
+
+  /// Map of screen keys to their widget builders
+  final Map<String, Widget Function()> _screenBuilders = {
+    'feed': () => const FeedScreen(),
+    'tracking': () => const TrackingScreen(),
+    'events': () => const EventsScreen(),
+    'chat': () => const ChatScreen(),
+    'profile': () => const ProfileScreen(),
+    'home': () => const FeedScreen(),
+  };
+
+  /// Build screens list from navigation items
+  List<Widget> _buildScreens(List<NavigationItem> items) {
+    return items.map((item) {
+      final builder = _screenBuilders[item.key];
+      if (builder != null) {
+        return builder();
+      }
+      // Fallback for unknown keys
+      return const SizedBox.shrink();
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fabAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _fabAnimController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AppConfig>(
+      stream: DynamicConfigService.instance.appConfigStream,
+      builder: (context, snapshot) {
+        final config = snapshot.data;
+        final navigationItems = config?.visibleNavigationItems ?? NavigationItemDefaults.defaultItems;
+        final screens = _buildScreens(navigationItems);
+
+        // Adjust current index if it exceeds the number of items
+        if (_currentIndex >= navigationItems.length && navigationItems.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _currentIndex = 0);
+          });
+        }
+
+        return Scaffold(
+          key: _scaffoldKey,
+          appBar: _buildPremiumAppBar(),
+          drawer: _buildPremiumDrawer(navigationItems),
+          body: Column(
+            children: [
+              // Announcement banner from admin
+              Consumer<AppState>(builder: (_, appState, __) {
+                if (!appState.hasActiveAnnouncement) return const SizedBox.shrink();
+                final ann = appState.announcement;
+                Color bgColor;
+                try { final hex = (ann['color'] ?? '#D1C2D3').toString().replaceAll('#', ''); bgColor = Color(int.parse(hex.length == 6 ? 'FF$hex' : hex, radix: 16)); } catch (_) { bgColor = const Color(0xFFD1C2D3); }
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(color: bgColor),
+                  child: Row(children: [
+                    const Icon(Icons.campaign_rounded, color: Colors.white, size: 20), const SizedBox(width: 10),
+                    Expanded(child: Text(ann['text'] ?? '', style: const TextStyle(fontFamily: 'Heebo', fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600))),
+                    if ((ann['link'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () {}),
+                  ]),
+                );
+              }),
+              if (_currentIndex == 0) _buildPremiumQuickAccess(config?.quickAccessItems ?? []),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.02),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: IndexedStack(
+                    key: ValueKey(_currentIndex),
+                    index: navigationItems.isNotEmpty ? _currentIndex : 0,
+                    children: screens.isNotEmpty ? screens : [const FeedScreen()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          bottomNavigationBar: _buildGlassBottomNav(navigationItems),
+          floatingActionButton: _currentIndex == 0 && navigationItems.isNotEmpty ? _buildPremiumFAB() : null,
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        );
+      },
+    );
+  }
+
+  // ===== PREMIUM APP BAR =====
+  PreferredSizeWidget _buildPremiumAppBar() {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(60),
+      child: StreamBuilder<BrandingConfig>(
+        stream: BrandingConfigService.instance.brandingStream,
+        initialData: BrandingConfigService.instance.config,
+        builder: (context, brandingSnapshot) {
+          final branding = brandingSnapshot.data ?? BrandingConfig.defaultConfig();
+          final hasLogo = branding.logoUrl != null && branding.logoUrl!.isNotEmpty;
+          
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    _buildIconBtn(
+                      Icons.menu_rounded,
+                      onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                    ),
+                    const SizedBox(width: 12),
+                    // Dynamic Logo - uses custom logo if available, fallback to default icon
+                    if (hasLogo)
+                      _buildDynamicLogo(branding.logoUrl!)
+                    else
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.momGradient,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                      ),
+                    const SizedBox(width: 10),
+                    // Dynamic App Name - updates in real-time
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        branding.appName,
+                        key: ValueKey(branding.appName),
+                        style: TextStyle(
+                          fontFamily: 'Heebo',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 21,
+                          letterSpacing: -0.5,
+                          foreground: Paint()
+                            ..shader = const LinearGradient(
+                              colors: [Color(0xFFD4A1AC), Color(0xFFBE8A93)],
+                            ).createShader(const Rect.fromLTWH(0, 0, 120, 30)),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    _buildIconBtn(Icons.search_rounded, onTap: _showSearchSheet),
+                    const SizedBox(width: 6),
+                    NotificationBadge(
+                      count: 5,
+                      child: _buildIconBtn(
+                        Icons.notifications_outlined,
+                        onTap: _showNotifications,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Build dynamic logo widget from URL
+  Widget _buildDynamicLogo(String logoUrl) {
+    Widget logoWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        logoUrl,
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: AppColors.momGradient,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+          );
+        },
+      ),
+    );
+    
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: logoWidget,
+    );
+  }
+
+  Widget _buildIconBtn(IconData icon, {required VoidCallback onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 22, color: AppColors.textPrimary),
+        ),
+      ),
+    );
+  }
+
+  // ===== PREMIUM QUICK ACCESS =====
+  Widget _buildPremiumQuickAccess(List<QuickAccessItem> items) {
+    return Container(
+      padding: const EdgeInsets.only(top: 6, bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: items.map((item) {
+            final color = AppColors.fromHex(item.color);
+            return _buildPremiumQuickAction(
+              item.labelHe,
+              color,
+              item.iconData,
+              () => _navigateQuickAccess(item.key),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumQuickAction(String label, Color color, IconData fallbackIcon, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withValues(alpha: 0.08), color.withValues(alpha: 0.03)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [color, color.withValues(alpha: 0.7)],
+                    ),
+                    borderRadius: BorderRadius.circular(9),
+                    boxShadow: [
+                      BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Icon(fallbackIcon, color: Colors.white, size: 15),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Heebo',
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: color.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _navigateQuickAccess(String key) {
+    final routes = <String, Widget Function()>{
+      'aiChat': () => const AIChatScreen(),
+      'sos': () => const SOSScreen(),
+      'whatsapp': () => const WhatsAppIntegrationScreen(),
+      'marketplace': () => const MarketplaceScreen(),
+      'mood': () => const MoodTrackerScreen(),
+      'album': () => const PhotoAlbumScreen(),
+      'experts': () => const ExpertsScreen(),
+      'tips': () => const DailyTipsScreen(),
+      'gamification': () => const GamificationScreen(),
+    };
+    final builder = routes[key];
+    if (builder != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => builder()));
+    }
+  }
+
+  // ===== GLASS BOTTOM NAV =====
+  Widget _buildGlassBottomNav(List<NavigationItem> navigationItems) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            blurRadius: 30,
+            offset: const Offset(0, -8),
+            spreadRadius: -4,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 10, 6, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: navigationItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              // Show badge on chat tab
+              final badge = item.key == 'chat' ? 2 : 0;
+              return _buildNavItem(
+                index,
+                item.iconData,
+                item.activeIconData,
+                item.labelHe,
+                badge: badge,
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, {int badge = 0}) {
+    final isActive = _currentIndex == index;
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            setState(() => _currentIndex = index);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isActive ? 20 : 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: isActive
+                        ? LinearGradient(
+                            colors: [
+                              AppColors.primary.withValues(alpha: 0.12),
+                              AppColors.primaryLight.withValues(alpha: 0.06),
+                            ],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: NotificationBadge(
+                    count: badge,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                      child: Icon(
+                        isActive ? activeIcon : icon,
+                        key: ValueKey(isActive),
+                        color: isActive ? AppColors.primary : AppColors.textHint,
+                        size: isActive ? 26 : 23,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  style: TextStyle(
+                    fontSize: isActive ? 11 : 10,
+                    fontFamily: 'Heebo',
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: isActive ? AppColors.primary : AppColors.textHint,
+                  ),
+                  child: Text(label),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== PREMIUM FAB =====
+  Widget? _buildPremiumFAB() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16, left: 16), // Adjust padding for side position
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: AppColors.momGradient,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: FloatingActionButton(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _showFullCreatePostSheet(); // Directly open post sheet
+        },
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: const Icon(
+          Icons.add_rounded,
+          color: Colors.white,
+          size: 30,
+        ),
+      ),
+    );
+  }
+
+  // ===== PREMIUM DRAWER =====
+  Widget _buildPremiumDrawer(List<NavigationItem> navigationItems) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(left: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.06),
+                    Colors.white,
+                  ],
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AppColors.momGradient,
+                        ),
+                        child: ProfileAvatar(
+                          name: context.watch<AppState>().currentUser?.fullName ?? 'Guest',
+                          size: 52,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.watch<AppState>().currentUser?.fullName ?? 'Guest',
+                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, fontFamily: 'Heebo'),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [AppColors.success.withValues(alpha: 0.15), AppColors.success.withValues(alpha: 0.05)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.verified_rounded, size: 12, color: AppColors.success),
+                                      const SizedBox(width: 3),
+                                      Text('מאומת', style: TextStyle(fontFamily: 'Heebo', fontSize: 10, color: AppColors.success, fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded, color: AppColors.textHint),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Gamification stats card - only show if gamification is enabled
+                  Consumer2<AppState, FeatureFlagService>(builder: (_, appState, featureService, __) {
+                    // Check both legacy and new feature flag systems
+                    final isGamificationEnabled = appState.isFeatureEnabled('gamification') || 
+                                                  featureService.isGamificationEnabled;
+                    if (!isGamificationEnabled) return const SizedBox.shrink();
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEDD3D8), Color(0xFFDBC8B0)],
+                            begin: Alignment.centerRight,
+                            end: Alignment.centerLeft,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(color: const Color(0xFFEDD3D8).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildMiniStat('Level 12', Icons.trending_up_rounded),
+                            _buildDividerDot(),
+                            _buildMiniStat('580', Icons.stars_rounded),
+                            _buildDividerDot(),
+                            _buildMiniStat('7 ימים', Icons.local_fire_department_rounded),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                children: [
+                  Builder(builder: (context) {
+                    final appState = context.watch<AppState>();
+                    final featureService = context.watch<FeatureFlagService>();
+                    
+                    // Helper function that checks both legacy and new feature flag systems
+                    bool isEnabled(String feature) {
+                      // Map legacy feature keys to new FeatureFlagIds
+                      final flagId = _mapLegacyFeatureToFlagId(feature);
+                      return appState.isFeatureEnabled(feature) || 
+                             (flagId != null && featureService.isEnabled(flagId));
+                    }
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDrawerSection(appState.drawerLabel('mainNav')),
+                        ...navigationItems.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final item = entry.value;
+                          final badge = item.key == 'chat' ? 2 : 0;
+                          return _buildDrawerItem(
+                            item.activeIconData,
+                            item.labelHe,
+                            () {
+                              setState(() => _currentIndex = index);
+                              Navigator.pop(context);
+                            },
+                            isSelected: _currentIndex == index,
+                            badge: badge,
+                          );
+                        }),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          child: Divider(color: AppColors.border.withValues(alpha: 0.5), height: 1),
+                        ),
+                        _buildDrawerSection(appState.drawerLabel('advancedFeatures')),
+                        if (isEnabled('aiChat')) _buildDrawerItem(Icons.auto_awesome_rounded, appState.drawerLabel('aiChat'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AIChatScreen())); }, iconColor: const Color(0xFFD1C2D3)),
+                        if (isEnabled('sos')) _buildDrawerItem(Icons.sos_rounded, appState.drawerLabel('sos'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const SOSScreen())); }, iconColor: AppColors.error),
+                        if (isEnabled('whatsapp')) _buildDrawerItem(Icons.chat_rounded, appState.drawerLabel('whatsapp'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatsAppIntegrationScreen())); }, iconColor: const Color(0xFFB5C8B9)),
+                        if (isEnabled('marketplace')) _buildDrawerItem(Icons.volunteer_activism_rounded, appState.drawerLabel('marketplace'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketplaceScreen())); }),
+                        if (isEnabled('mood')) _buildDrawerItem(Icons.mood_rounded, appState.drawerLabel('mood'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const MoodTrackerScreen())); }, iconColor: const Color(0xFFD1C2D3)),
+                        if (isEnabled('album')) _buildDrawerItem(Icons.photo_album_rounded, appState.drawerLabel('album'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const PhotoAlbumScreen())); }, iconColor: const Color(0xFFEDD3D8)),
+                        if (isEnabled('experts')) _buildDrawerItem(Icons.local_hospital_rounded, appState.drawerLabel('experts'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpertsScreen())); }),
+                        if (isEnabled('tips')) _buildDrawerItem(Icons.lightbulb_rounded, appState.drawerLabel('tips'), () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyTipsScreen())); }),
+
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          child: Divider(color: AppColors.border.withValues(alpha: 0.5), height: 1),
+                        ),
+                        _buildDrawerSection(appState.drawerLabel('settingsSection')),
+                      ],
+                    );
+                  }),
+                  _buildDrawerItem(Icons.settings_rounded, 'הגדרות', () { Navigator.pop(context); _showSettingsSheet(); }),
+                  _buildDrawerItem(Icons.accessibility_new_rounded, 'נגישות', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AccessibilityScreen())); }, iconColor: AppColors.info),
+                  _buildDrawerItem(Icons.gavel_rounded, 'משפטי ומדיניות', () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen())); }),
+                  _buildDrawerItem(Icons.help_outline_rounded, 'עזרה', () { Navigator.pop(context); _showHelpSheet(); }),
+                  _buildDrawerItem(Icons.info_outline_rounded, 'אודות', () { Navigator.pop(context); _showAboutDialog(); }),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.4))),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _handleLogout,
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: const Text('התנתקות', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.85), size: 15),
+        const SizedBox(width: 4),
+        Text(value, style: TextStyle(fontFamily: 'Heebo', fontSize: 11, color: Colors.white.withValues(alpha: 0.95), fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+
+  Widget _buildDividerDot() {
+    return Container(
+      width: 3,
+      height: 3,
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.4), shape: BoxShape.circle),
+    );
+  }
+
+  Widget _buildDrawerSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 22, top: 10, bottom: 4, left: 22),
+      child: Text(
+        title,
+        style: TextStyle(fontFamily: 'Heebo', fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textHint, letterSpacing: 0.8),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem(
+    IconData icon, String title, VoidCallback onTap, {
+    bool isSelected = false, int badge = 0, Color? iconColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (iconColor ?? (isSelected ? AppColors.primary : AppColors.textSecondary)).withValues(alpha: isSelected ? 0.12 : 0.06),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor ?? (isSelected ? AppColors.primary : AppColors.textSecondary), size: 20),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontFamily: 'Heebo', fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+          trailing: badge > 0
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.secondaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                )
+              : null,
+          selected: isSelected,
+          selectedTileColor: AppColors.primary.withValues(alpha: 0.04),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          dense: true,
+          visualDensity: const VisualDensity(vertical: -1),
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  // ===== SHEETS & DIALOGS =====
+
+  void _showFullCreatePostSheet({String? initialType}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: _QuickPostSheet(initialType: initialType),
+      ),
+    );
+  }
+
+  void _showNotifications() {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (context) => _NotificationsSheet(),
+    );
+  }
+
+  void _showSearchSheet() {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (context) => _SearchSheet(),
+    );
+  }
+
+  void _showSettingsSheet() {
+    final appState = context.read<AppState>();
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              const Text('הגדרות', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _settingsTile(Icons.person_outline_rounded, 'פרופיל', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () { Navigator.pop(context); setState(() => _currentIndex = 4); }),
+              _settingsTile(Icons.notifications_outlined, 'התראות', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
+                Navigator.pop(context);
+                AppSnackbar.info(context, 'הגדרות התראות בקרוב...');
+              }),
+              _settingsTile(Icons.lock_outline_rounded, 'פרטיות', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
+                Navigator.pop(context);
+                AppSnackbar.info(context, 'הגדרות פרטיות בקרוב...');
+              }),
+              _settingsTile(Icons.accessibility_new_rounded, 'נגישות', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AccessibilityScreen()));
+              }),
+              _settingsTile(Icons.gavel_rounded, 'מדיניות ותנאים', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen()));
+              }),
+              _settingsTile(Icons.language_rounded, 'שפה', trailing: Text('עברית', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 13))),
+              _settingsTile(
+                Icons.dark_mode_outlined, 'מצב כהה',
+                trailing: Switch(
+                  value: appState.themeMode == ThemeMode.dark,
+                  onChanged: (val) {
+                    appState.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+                    setSheetState(() {});
+                    setState(() {});
+                  },
+                  activeTrackColor: AppColors.primary.withValues(alpha: 0.4),
+                  thumbColor: WidgetStateProperty.all(AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _settingsTile(IconData icon, String title, {Widget? trailing, VoidCallback? onTap}) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: AppColors.surfaceVariant, borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, size: 20, color: AppColors.textSecondary),
+      ),
+      title: Text(title, style: const TextStyle(fontFamily: 'Heebo', fontSize: 15)),
+      trailing: trailing,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onTap: onTap,
+    );
+  }
+
+  void _showHelpSheet() {
+    final appState = context.read<AppState>();
+    final featureService = context.read<FeatureFlagService>();
+    
+    // Check both legacy and new feature flag systems
+    final isAiChatEnabled = appState.isFeatureEnabled('aiChat') || 
+                            featureService.isAiChatEnabled;
+    
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Text('עזרה ותמיכה', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            if (isAiChatEnabled)
+              _settingsTile(Icons.auto_awesome_rounded, 'שאלי את MomBot', onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AIChatScreen())); }),
+            _settingsTile(Icons.email_outlined, 'צרי קשר', onTap: () {
+              Navigator.pop(context);
+              AppSnackbar.success(context, 'שלחנו לך מייל עם פרטי קשר!');
+            }),
+            _settingsTile(Icons.question_answer_outlined, 'שאלות נפוצות', onTap: () {
+              Navigator.pop(context);
+              AppSnackbar.info(context, 'דף שאלות נפוצות יהיה זמין בקרוב');
+            }),
+            _settingsTile(Icons.flag_outlined, 'דווחי על בעיה', onTap: () {
+              Navigator.pop(context);
+              AppSnackbar.success(context, 'תודה! הדיווח התקבל');
+            }),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(gradient: AppColors.momGradient, borderRadius: BorderRadius.circular(14)),
+              child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Text(TextConfig.appName, style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'MOMIT - רשת חברתית סגורה ומהימנה שבנויה על ידי אמהות, בשביל אמהות.\n\nכי רק אמא מבינה אמא.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Heebo', height: 1.6),
+            ),
+            SizedBox(height: 16),
+            Text('גרסה 3.0.0', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('סגור', style: TextStyle(fontFamily: 'Heebo'))),
+        ],
+      ),
+    );
+  }
+
+  void _handleLogout() async {
+    final confirmed = await context.showLogoutConfirm();
+    if (confirmed && mounted) {
+      await AuthService.instance.logout();
+      if (!mounted) return;
+      context.read<AppState>().logout();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  /// Maps legacy feature keys to new FeatureFlagIds
+  String? _mapLegacyFeatureToFlagId(String legacyKey) {
+    final mapping = {
+      'aiChat': FeatureFlagIds.enableAiChat,
+      'sos': FeatureFlagIds.enableSos,
+      'whatsapp': FeatureFlagIds.enableWhatsapp,
+      'marketplace': FeatureFlagIds.enableMarketplace,
+      'mood': FeatureFlagIds.enableMoodTracker,
+      'album': FeatureFlagIds.enableAlbum,
+      'experts': FeatureFlagIds.enableExperts,
+      'tips': FeatureFlagIds.enableDailyTips,
+      'gamification': FeatureFlagIds.enableGamification,
+      'chat': FeatureFlagIds.enableChat,
+      'events': FeatureFlagIds.enableEvents,
+      'tracking': FeatureFlagIds.enableTracking,
+    };
+    return mapping[legacyKey];
+  }
+}
+
+// ===== NOTIFICATIONS SHEET =====
+class _NotificationsSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      child: Column(
+        children: [
+          Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('התראות', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Heebo')),
+                TextButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: const Text('כל ההתראות סומנו כנקראו', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    );
+                  },
+                  child: Text('סמני הכל כנקרא', style: TextStyle(fontFamily: 'Heebo', color: AppColors.primary, fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _buildNotif('מיכל לוין', 'אהבה את הפוסט שלך', Icons.favorite_rounded, AppColors.secondary, '5 דקות', true),
+                _buildNotif('MomBot', 'טיפ חדש בשבילך!', Icons.auto_awesome_rounded, const Color(0xFFD1C2D3), '10 דקות', true),
+                _buildNotif('נועה ישראלי', 'הגיבה: "מסכימה לגמרי!"', Icons.chat_bubble_rounded, AppColors.primary, '15 דקות', true),
+                _buildNotif('הישג חדש!', 'קיבלת את תג "דברנית"', Icons.emoji_events_rounded, AppColors.accent, '30 דקות', true),
+                _buildNotif('SOS קרוב', 'אמא באזורך צריכה עזרה', Icons.sos_rounded, AppColors.error, 'שעה', false),
+                _buildNotif('אירוע מחר', 'יוגה לאמהות - 10:00', Icons.event_rounded, AppColors.accent, '2 שעות', false),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotif(String title, String subtitle, IconData icon, Color color, String time, bool isUnread) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isUnread ? color.withValues(alpha: 0.04) : AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: isUnread ? Border.all(color: color.withValues(alpha: 0.12)) : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.05)]),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text(title, style: TextStyle(fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600, fontFamily: 'Heebo', fontSize: 14))),
+                    if (isUnread) Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(subtitle, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontFamily: 'Heebo')),
+              ],
+            ),
+          ),
+          Text(time, style: TextStyle(color: AppColors.textHint, fontSize: 11, fontFamily: 'Heebo')),
+        ],
+      ),
+    );
+  }
+}
+
+// ===== SEARCH SHEET =====
+class _SearchSheet extends StatefulWidget {
+  @override
+  State<_SearchSheet> createState() => _SearchSheetState();
+}
+
+class _SearchSheetState extends State<_SearchSheet> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      child: Column(
+        children: [
+          Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              textDirection: TextDirection.rtl,
+              style: const TextStyle(fontFamily: 'Heebo'),
+              decoration: InputDecoration(
+                hintText: 'חיפוש אמהות, פוסטים, אירועים...',
+                hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textHint),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear_rounded), onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); })
+                    : null,
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+          Expanded(child: _searchQuery.isEmpty ? _buildSuggestions() : _buildResults()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestions() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        const Text('נושאים פופולריים', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: ['האכלה', 'שינה', 'התפתחות', 'בריאות', 'תינוקות', 'צעצועים', 'מומחים', 'אירועים']
+              .map((t) => GestureDetector(
+                    onTap: () { _searchController.text = t; setState(() => _searchQuery = t); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [AppColors.primary.withValues(alpha: 0.06), AppColors.primary.withValues(alpha: 0.02)]),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                      ),
+                      child: Text(t, style: const TextStyle(fontFamily: 'Heebo', fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResults() {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      children: [
+        const Text('תוצאות חיפוש', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 12),
+        _buildResult('מיכל לוין', 'אמא לנועה (2)', Icons.person_rounded, AppColors.primary),
+        _buildResult('יוגה לאמהות', 'מחר ב-10:00', Icons.event_rounded, AppColors.accent),
+        _buildResult('טיפים לשינה', '23 תגובות', Icons.article_rounded, AppColors.success),
+        _buildResult('ד"ר רונית גולן', 'רופאת ילדים מאומתת', Icons.medical_services_rounded, AppColors.info),
+      ],
+    );
+  }
+
+  Widget _buildResult(String title, String subtitle, IconData icon, Color color) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.04)]),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(title, style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary, fontSize: 13)),
+      onTap: () => Navigator.pop(context),
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+}
+
+// ===== QUICK POST SHEET =====
+class _QuickPostSheet extends StatefulWidget {
+  final String? initialType;
+  const _QuickPostSheet({this.initialType});
+
+  @override
+  State<_QuickPostSheet> createState() => _QuickPostSheetState();
+}
+
+class _QuickPostSheetState extends State<_QuickPostSheet> {
+  final _contentController = TextEditingController();
+  bool _isPoll = false;
+  bool _isAnonymous = false;
+  String _selectedCategory = 'general';
+  String? _selectedImage;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isPoll = widget.initialType == 'poll';
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    // Image picker simulation - in real app would use image_picker package
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() => _isLoading = false);
+    
+    // Show a simulated image selection for demo purposes
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('בחירת תמונה - יש לחבר את ספריית image_picker', style: TextStyle(fontFamily: 'Heebo')),
+        backgroundColor: AppColors.info,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _removeImage() {
+    setState(() => _selectedImage = null);
+  }
+
+  void _submitPost() {
+    if (_contentController.text.isEmpty && _selectedImage == null) return;
+    
+    setState(() => _isLoading = true);
+    
+    // Simulate post submission
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isPoll ? 'הסקר פורסם!' : 'הפוסט פורסם!', style: const TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canSubmit = _contentController.text.isNotEmpty || _selectedImage != null;
+    
+    return Column(
+      children: [
+        Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: _isLoading ? null : () => Navigator.pop(context), 
+                child: Text('ביטול', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint))
+              ),
+              Text(_isPoll ? 'סקר חדש' : 'פוסט חדש', style: const TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.w800)),
+              TextButton(
+                onPressed: canSubmit && !_isLoading ? _submitPost : null,
+                child: _isLoading 
+                  ? const SizedBox(
+                      width: 20, 
+                      height: 20, 
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)
+                    )
+                  : Text('פרסום', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, color: canSubmit ? AppColors.primary : AppColors.textHint)),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(radius: 20, backgroundColor: AppColors.primary.withValues(alpha: 0.15), child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 20)),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_isAnonymous ? 'אנונימית' : 'את', style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+                        GestureDetector(
+                          onTap: () => setState(() => _isAnonymous = !_isAnonymous),
+                          child: Row(
+                            children: [
+                              Icon(_isAnonymous ? Icons.visibility_off_rounded : Icons.public_rounded, size: 12, color: AppColors.textHint),
+                              const SizedBox(width: 4),
+                              Text(_isAnonymous ? 'אנונימי' : 'ציבורי', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _contentController,
+                  maxLines: null,
+                  minLines: 5,
+                  textDirection: TextDirection.rtl,
+                  style: const TextStyle(fontFamily: 'Heebo', fontSize: 16, height: 1.5),
+                  decoration: InputDecoration(
+                    hintText: 'מה על הלב? שתפי...',
+                    hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (_selectedImage != null) ...[
+                  const SizedBox(height: 16),
+                  _buildImagePreview(),
+                ],
+                const SizedBox(height: 16),
+                _buildImagePickerButton(),
+                const SizedBox(height: 24),
+                const Text('קטגוריה:', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 14)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: [
+                    _buildCat('general', 'כללי'), _buildCat('questions', 'שאלות'), _buildCat('tips', 'טיפים'), _buildCat('moments', 'רגעים'), _buildCat('help', 'עזרה'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Bottom Submit Button
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
+          ),
+          child: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: canSubmit && !_isLoading ? _submitPost : null,
+                icon: _isLoading 
+                  ? const SizedBox(
+                      width: 18, 
+                      height: 18, 
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                    )
+                  : const Icon(Icons.send_rounded, size: 20),
+                label: Text(_isPoll ? 'פרסמי סקר' : 'פרסמי פוסט', style: const TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.3),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePickerButton() {
+    return GestureDetector(
+      onTap: _isLoading ? null : _pickImage,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add_photo_alternate_rounded, color: AppColors.primary.withValues(alpha: 0.8), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'הוסיפי תמונה',
+              style: TextStyle(
+                fontFamily: 'Heebo',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            height: 200,
+            color: AppColors.surfaceVariant,
+            child: _selectedImage != null
+              ? Image.network(_selectedImage!, fit: BoxFit.cover)
+              : const Center(child: Icon(Icons.image_rounded, size: 50, color: AppColors.textHint)),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: GestureDetector(
+            onTap: _removeImage,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCat(String id, String name) {
+    final isSelected = _selectedCategory == id;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedCategory = id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: isSelected ? AppColors.primaryGradient : null,
+          color: isSelected ? null : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(name, style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: isSelected ? Colors.white : AppColors.textPrimary, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+      ),
+    );
+  }
+}
