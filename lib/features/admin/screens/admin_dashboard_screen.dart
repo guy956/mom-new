@@ -248,7 +248,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         label: 'סקירה',
         icon: Icons.dashboard_rounded,
         permission: Permission.viewAnalytics,
-        builder: () => AdminOverviewTab(tabController: _tabController!),
+        builder: () => AdminOverviewTab(tabController: _tabController!, onNavigateToTab: _navigateToTab),
       ),
       // 2. Approvals - Content approval (requires manageEvents or viewUsers)
       _AdminTab(

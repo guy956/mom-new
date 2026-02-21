@@ -139,6 +139,16 @@ class _NotificationDropdown extends StatelessWidget {
                   TextButton(
                     onPressed: () async {
                       await notificationService.markAllAsRead();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('כל ההתראות סומנו כנקראו', style: TextStyle(fontFamily: 'Heebo')),
+                            backgroundColor: const Color(0xFFB5C8B9),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
                     },
                     child: const Text('סמן הכל כנקרא'),
                   ),

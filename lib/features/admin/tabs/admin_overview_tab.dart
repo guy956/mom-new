@@ -12,7 +12,8 @@ import '../widgets/analytics_widgets.dart';
 /// Enhanced Admin Overview Tab with Real-time Analytics Dashboard
 class AdminOverviewTab extends StatefulWidget {
   final TabController tabController;
-  const AdminOverviewTab({super.key, required this.tabController});
+  final void Function(String tabId)? onNavigateToTab;
+  const AdminOverviewTab({super.key, required this.tabController, this.onNavigateToTab});
 
   @override
   State<AdminOverviewTab> createState() => _AdminOverviewTabState();
@@ -479,6 +480,12 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
   // QUICK ACTIONS
   // ════════════════════════════════════════════════════════════════
 
+  void _goToTab(String tabId) {
+    if (widget.onNavigateToTab != null) {
+      widget.onNavigateToTab!(tabId);
+    }
+  }
+
   Widget _buildQuickActions() {
     return GridView.count(
       crossAxisCount: 6,
@@ -491,33 +498,33 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
         AdminWidgets.quickActionBtn(
           icon: Icons.school_rounded,
           label: 'הוסף מומחה',
-          onTap: () => widget.tabController.animateTo(2),
+          onTap: () => _goToTab('experts'),
         ),
         AdminWidgets.quickActionBtn(
           icon: Icons.event_rounded,
           label: 'צור אירוע',
-          onTap: () => widget.tabController.animateTo(4),
+          onTap: () => _goToTab('events'),
         ),
         AdminWidgets.quickActionBtn(
           icon: Icons.tips_and_updates_rounded,
           label: 'הוסף טיפ',
-          onTap: () => widget.tabController.animateTo(6),
+          onTap: () => _goToTab('content'),
         ),
         AdminWidgets.quickActionBtn(
           icon: Icons.flag_rounded,
           label: 'דיווחים',
           color: const Color(0xFFD4A3A3),
-          onTap: () => widget.tabController.animateTo(7),
+          onTap: () => _goToTab('reports'),
         ),
         AdminWidgets.quickActionBtn(
-          icon: Icons.analytics_rounded,
-          label: 'דוחות',
-          onTap: () => widget.tabController.animateTo(9),
+          icon: Icons.approval_rounded,
+          label: 'אישורים',
+          onTap: () => _goToTab('approvals'),
         ),
         AdminWidgets.quickActionBtn(
           icon: Icons.settings_rounded,
           label: 'הגדרות',
-          onTap: () => widget.tabController.animateTo(8),
+          onTap: () => _goToTab('config'),
         ),
       ],
     );

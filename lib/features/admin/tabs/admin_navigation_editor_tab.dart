@@ -72,6 +72,19 @@ class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
     );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _navigationVisibility.addAll({
+      'home': true,
+      'feed': true,
+      'tracking': true,
+      'events': false,
+      'chat': true,
+      'profile': true,
+    });
+  }
+
   Widget _buildNavigationStructureCard() {
     return Card(
       child: Padding(
@@ -90,28 +103,47 @@ class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
               ],
             ),
             const SizedBox(height: 16),
-            const Text('כאן תוכל לערוך את מבנה תפריטי הניווט הראשיים'),
+            const Text('כאן תוכלי לערוך את מבנה תפריטי הניווט הראשיים'),
             const SizedBox(height: 16),
-            _buildNavigationItem('דף הבית', Icons.home_rounded, true),
-            _buildNavigationItem('פיד', Icons.feed_rounded, true),
-            _buildNavigationItem('מעקב', Icons.track_changes_rounded, true),
-            _buildNavigationItem('אירועים', Icons.event_rounded, false),
-            _buildNavigationItem('צ\'אט', Icons.chat_rounded, true),
-            _buildNavigationItem('פרופיל', Icons.person_rounded, true),
+            _buildNavigationItem('home', 'דף הבית', Icons.home_rounded),
+            _buildNavigationItem('feed', 'פיד', Icons.feed_rounded),
+            _buildNavigationItem('tracking', 'מעקב', Icons.track_changes_rounded),
+            _buildNavigationItem('events', 'אירועים', Icons.event_rounded),
+            _buildNavigationItem('chat', 'צ\'אט', Icons.chat_rounded),
+            _buildNavigationItem('profile', 'פרופיל', Icons.person_rounded),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavigationItem(String label, IconData icon, bool isVisible) {
+  Widget _buildNavigationItem(String key, String label, IconData icon) {
+    final isVisible = _navigationVisibility[key] ?? true;
     return ListTile(
-      leading: Icon(icon, color: AppColors.primary),
-      title: Text(label),
+      leading: Icon(icon, color: isVisible ? AppColors.primary : AppColors.textHint),
+      title: Text(label, style: TextStyle(
+        color: isVisible ? null : AppColors.textHint,
+        decoration: isVisible ? null : TextDecoration.lineThrough,
+      )),
       trailing: Switch(
         value: isVisible,
+        activeColor: AppColors.primary,
         onChanged: (value) {
-          _showFeatureInDevelopmentDialog('שינוי נראות ניווט');
+          setState(() {
+            _navigationVisibility[key] = value;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                value ? '$label מוצג בניווט' : '$label הוסתר מהניווט',
+                style: const TextStyle(fontFamily: 'Heebo'),
+              ),
+              backgroundColor: value ? AppColors.success : AppColors.textHint,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 1),
+            ),
+          );
         },
       ),
     );

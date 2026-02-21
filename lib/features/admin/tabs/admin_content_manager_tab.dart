@@ -157,18 +157,12 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
         labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
       onTap: () {
-        // Navigate to approvals tab for content moderation
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('השתמשי בטאב "אישורים" לביקורת תוכן', style: TextStyle(fontFamily: 'Heebo')),
+            content: const Text('עברי לטאב "אישורים" לביקורת תוכן', style: TextStyle(fontFamily: 'Heebo')),
             backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            action: SnackBarAction(
-              label: 'סגור',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
           ),
         );
       },
