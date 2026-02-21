@@ -11,6 +11,35 @@ class AdminNavigationEditorTab extends StatefulWidget {
 
 class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
   bool _isLoading = false;
+  final Map<String, bool> _navigationVisibility = {};
+
+  void _showFeatureInDevelopmentDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.construction, color: Colors.orange.shade700),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('פיצ'ר בפיתוח', style: TextStyle(fontFamily: 'Heebo')),
+            ),
+          ],
+        ),
+        content: Text(
+          'הפיצ'ר "$featureName" נמצא כרגע בפיתוח ויהיה זמין בקרוב.',
+          style: const TextStyle(fontFamily: 'Heebo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('הבנתי', style: TextStyle(fontFamily: 'Heebo')),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +111,7 @@ class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
       trailing: Switch(
         value: isVisible,
         onChanged: (value) {
-          // TODO: Implement visibility toggle
+          _showFeatureInDevelopmentDialog('שינוי נראות ניווט');
         },
       ),
     );
@@ -110,7 +139,7 @@ class _AdminNavigationEditorTabState extends State<AdminNavigationEditorTab> {
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Implement add quick link
+                _showFeatureInDevelopmentDialog('הוספת קישור מהיר');
               },
               icon: const Icon(Icons.add),
               label: const Text('הוסף קישור חדש'),

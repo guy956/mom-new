@@ -12,6 +12,34 @@ class AdminContentManagerTab extends StatefulWidget {
 class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
   bool _isLoading = false;
 
+  void _showFeatureInDevelopmentDialog(String featureName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.construction, color: Colors.orange.shade700),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('פיצ'ר בפיתוח', style: TextStyle(fontFamily: 'Heebo')),
+            ),
+          ],
+        ),
+        content: Text(
+          'הפיצ'ר "$featureName" נמצא כרגע בפיתוח ויהיה זמין בקרוב.\n\nבינתיים, השתמשי בטאב "אישורים" לניהול תוכן.',
+          style: const TextStyle(fontFamily: 'Heebo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('הבנתי', style: TextStyle(fontFamily: 'Heebo')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,7 +157,20 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
         labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
       onTap: () {
-        // TODO: Navigate to moderation queue
+        // Navigate to approvals tab for content moderation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('השתמשי בטאב "אישורים" לביקורת תוכן', style: TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            action: SnackBarAction(
+              label: 'סגור',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
       },
     );
   }
@@ -158,24 +199,24 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Implement bulk delete
+                    _showFeatureInDevelopmentDialog('מחיקה מרוכזת');
                   },
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('מחק נבחרים'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.red.withValues(alpha: 0.7),
                   ),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Implement bulk approve
+                    _showFeatureInDevelopmentDialog('אישור מרוכז');
                   },
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('אשר נבחרים'),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Implement export
+                    _showFeatureInDevelopmentDialog('ייצוא תוכן');
                   },
                   icon: const Icon(Icons.download),
                   label: const Text('ייצא תוכן'),
