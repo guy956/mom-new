@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/auth_service.dart';
+import 'package:mom_connect/services/rbac_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mom_connect/services/notification_service.dart';
 
@@ -60,20 +61,19 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
     // Check permission before allowing approval
     final rbac = RbacService.instance;
     if (!rbac.hasPermission(Permission.approveContent)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('אין לך הרשאות לאשר תוכן', style: TextStyle(fontFamily: 'Heebo')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('אין לך הרשאות לאשר תוכן', style: TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
     try {
-      final fs = context.read<FirestoreService>();
-      final notificationService = NotificationService();
-
-      // Get the full content data before updating status
+      // Get the full content data BEFORE updating
       DocumentSnapshot? contentDoc;
       try {
         contentDoc = await FirebaseFirestore.instance
@@ -84,14 +84,23 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
         debugPrint('[AdminApprovalsTab] Error fetching content data: $e');
       }
 
-      final contentData = contentDoc?.data() as Map<String, dynamic>? ?? {};
+      if (contentDoc == null || !contentDoc.exists) {
+        throw Exception('התוכן לא נמצא במאגר');
+      }
 
-      // Update status to approved
+      final contentData = contentDoc.data() as Map<String, dynamic>? ?? {};
+
+      // Update status directly in Firestore with proper field mapping
       if (collection == 'events') {
-        await fs.updateEventStatus(itemId, 'approved');
+        await FirebaseFirestore.instance.collection('events').doc(itemId).update({
+          'status': 'approved',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
 
         // Notify all users about the new event
         try {
+          final notificationService = NotificationService();
           await notificationService.notifyAllUsersNewEvent(
             eventId: itemId,
             eventTitle: title,
@@ -101,10 +110,15 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
           debugPrint('[AdminApprovalsTab] Error notifying users about event: $e');
         }
       } else if (collection == 'marketplace') {
-        await fs.updateMarketplaceItemStatus(itemId, 'active');
+        await FirebaseFirestore.instance.collection('marketplace').doc(itemId).update({
+          'status': 'active',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
 
         // Notify all users about the new marketplace item
         try {
+          final notificationService = NotificationService();
           await notificationService.notifyAllUsersNewMarketplaceItem(
             itemId: itemId,
             itemTitle: title,
@@ -114,10 +128,15 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
           debugPrint('[AdminApprovalsTab] Error notifying users about marketplace item: $e');
         }
       } else if (collection == 'posts') {
-        await fs.updatePost(itemId, {'status': 'approved'});
+        await FirebaseFirestore.instance.collection('posts').doc(itemId).update({
+          'status': 'approved',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
 
         // Notify all users about the new post
         try {
+          final notificationService = NotificationService();
           await notificationService.notifyAllUsersNewPost(
             postId: itemId,
             postContent: title,
@@ -127,37 +146,47 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
           debugPrint('[AdminApprovalsTab] Error notifying users about post: $e');
         }
       } else if (collection == 'chatGroups') {
-        // For chat groups, use the firestore service which internally calls the notification
-        await fs.updateChatGroupStatus(itemId, 'approved');
+        await FirebaseFirestore.instance.collection('chatGroups').doc(itemId).update({
+          'status': 'approved',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       // Log activity
       final userData = await AuthService.instance.getSavedSession();
       final userName = userData?['fullName'] ?? 'Admin';
-      await fs.logActivity(
-        action: 'אישר $type: $title',
-        user: userName,
-        userId: userData?['id'],
-        type: 'approval',
-      );
+      await FirebaseFirestore.instance.collection('activity_log').add({
+        'action': 'אישר $type: $title',
+        'user': userName,
+        'userId': userData?['id'] ?? '',
+        'type': 'approval',
+        'targetId': itemId,
+        'targetCollection': collection,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       if (mounted) {
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$type אושר בהצלחה', style: const TextStyle(fontFamily: 'Heebo')),
+            content: Text('$type אושר בהצלחה ומופיע עכשיו באפליקציה ובאתר ✓', style: const TextStyle(fontFamily: 'Heebo')),
             backgroundColor: const Color(0xFFB5C8B9),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
+      debugPrint('[AdminApprovalsTab] Error approving content: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('שגיאה באישור: $e', style: const TextStyle(fontFamily: 'Heebo')),
+            content: Text('שגיאה באישור: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
             backgroundColor: const Color(0xFFD4A3A3),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -168,12 +197,14 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
     // Check permission before allowing rejection
     final rbac = RbacService.instance;
     if (!rbac.hasPermission(Permission.approveContent)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('אין לך הרשאות לדחות תוכן', style: TextStyle(fontFamily: 'Heebo')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('אין לך הרשאות לדחות תוכן', style: TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -201,44 +232,67 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
     if (confirmed != true) return;
 
     try {
-      final fs = context.read<FirestoreService>();
-
-      // Update status to rejected
+      // Update status to rejected directly in Firestore
       if (collection == 'events') {
-        await fs.updateEventStatus(itemId, 'rejected');
+        await FirebaseFirestore.instance.collection('events').doc(itemId).update({
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'rejectedAt': FieldValue.serverTimestamp(),
+        });
       } else if (collection == 'marketplace') {
-        await fs.updateMarketplaceItemStatus(itemId, 'rejected');
+        await FirebaseFirestore.instance.collection('marketplace').doc(itemId).update({
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'rejectedAt': FieldValue.serverTimestamp(),
+        });
       } else if (collection == 'posts') {
-        await fs.updatePost(itemId, {'status': 'rejected'});
+        await FirebaseFirestore.instance.collection('posts').doc(itemId).update({
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'rejectedAt': FieldValue.serverTimestamp(),
+        });
+      } else if (collection == 'chatGroups') {
+        await FirebaseFirestore.instance.collection('chatGroups').doc(itemId).update({
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+          'rejectedAt': FieldValue.serverTimestamp(),
+        });
       }
 
       // Log activity
       final userData = await AuthService.instance.getSavedSession();
       final userName = userData?['fullName'] ?? 'Admin';
-      await fs.logActivity(
-        action: 'דחה $type: $title',
-        user: userName,
-        userId: userData?['id'],
-        type: 'approval',
-      );
+      await FirebaseFirestore.instance.collection('activity_log').add({
+        'action': 'דחה $type: $title',
+        'user': userName,
+        'userId': userData?['id'] ?? '',
+        'type': 'rejection',
+        'targetId': itemId,
+        'targetCollection': collection,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       if (mounted) {
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$type נדחה', style: const TextStyle(fontFamily: 'Heebo')),
+            content: Text('$type נדחה ולא יופיע באפליקציה ובאתר ✓', style: const TextStyle(fontFamily: 'Heebo')),
             backgroundColor: const Color(0xFFD4A3A3),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
+      debugPrint('[AdminApprovalsTab] Error rejecting content: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('שגיאה בדחייה: $e', style: const TextStyle(fontFamily: 'Heebo')),
+            content: Text('שגיאה בדחייה: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
             backgroundColor: const Color(0xFFD4A3A3),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

@@ -1204,7 +1204,7 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     // Validate title
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1281,7 +1281,9 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       await firestoreService.addMarketplaceItem(itemData);
 
+      if (!mounted) return;
       Navigator.pop(context);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1298,6 +1300,7 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
