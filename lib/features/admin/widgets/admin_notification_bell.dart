@@ -117,7 +117,7 @@ class _NotificationDropdown extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFD4A1AC).withOpacity(0.1),
+                color: const Color(0xFFD4A1AC).withValues(alpha: 0.1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
@@ -264,7 +264,7 @@ class _NotificationItemState extends State<_NotificationItem> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isUnread
-                ? const Color(0xFFD4A1AC).withOpacity(0.05)
+                ? const Color(0xFFD4A1AC).withValues(alpha: 0.05)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -275,7 +275,7 @@ class _NotificationItemState extends State<_NotificationItem> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: _getTypeColor(widget.notification.type).withOpacity(0.1),
+                  color: _getTypeColor(widget.notification.type).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -344,7 +344,7 @@ class _NotificationItemState extends State<_NotificationItem> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _getTypeColor(widget.notification.type).withOpacity(0.1),
+                            color: _getTypeColor(widget.notification.type).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
