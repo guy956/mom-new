@@ -3,6 +3,7 @@ import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/app_state.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// מסך מומחים - Real-time from Firestore
 class ExpertsScreen extends StatefulWidget {
@@ -313,13 +314,17 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
               if (phone.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.phone_outlined, color: AppColors.primary, size: 20),
-                  onPressed: () {},
+                  onPressed: () {
+                    launchUrl(Uri.parse('tel:$phone'));
+                  },
                   tooltip: phone,
                 ),
               if (email.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.email_outlined, color: AppColors.primary, size: 20),
-                  onPressed: () {},
+                  onPressed: () {
+                    launchUrl(Uri.parse('mailto:$email'));
+                  },
                   tooltip: email,
                 ),
               ElevatedButton(
@@ -339,11 +344,15 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
   }
 
   void _showBookingSheet(Map<String, dynamic> expert) {
+    int selectedDateIndex = 0;
+    String selectedTime = '15:00';
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
         height: MediaQuery.of(context).size.height * 0.65,
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
@@ -365,9 +374,11 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                 scrollDirection: Axis.horizontal,
                 children: List.generate(7, (i) {
                   final date = DateTime.now().add(Duration(days: i));
-                  final isSelected = i == 0;
+                  final isSelected = i == selectedDateIndex;
                   return GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      setSheetState(() => selectedDateIndex = i);
+                    },
                     child: Container(
                       width: 60,
                       margin: const EdgeInsets.only(left: 8),
@@ -401,18 +412,20 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
               runSpacing: 8,
               children: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map((time) {
                 return GestureDetector(
-                  onTap: () {},
+                  onTap: () {
+                    setSheetState(() => selectedTime = time);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: time == '15:00' ? AppColors.primary : AppColors.surfaceVariant,
+                      color: time == selectedTime ? AppColors.primary : AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       time,
                       style: TextStyle(
                         fontFamily: 'Heebo',
-                        color: time == '15:00' ? Colors.white : AppColors.textPrimary,
+                        color: time == selectedTime ? Colors.white : AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -425,10 +438,11 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  final date = DateTime.now().add(Duration(days: selectedDateIndex));
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('התור נקבע! ${expert['name']}', style: const TextStyle(fontFamily: 'Heebo')),
+                      content: Text('התור נקבע עם ${expert['name']} ב-${date.day}/${date.month} בשעה $selectedTime', style: const TextStyle(fontFamily: 'Heebo')),
                       backgroundColor: AppColors.success,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -444,6 +458,7 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

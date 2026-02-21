@@ -433,7 +433,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           _buildOptionChip(
             icon: Icons.location_on_outlined,
             label: 'מיקום',
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('שיתוף מיקום יהיה זמין בקרוב', style: TextStyle(fontFamily: 'Heebo')),
+                  backgroundColor: AppColors.info,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           _buildOptionChip(
             icon: Icons.tag,

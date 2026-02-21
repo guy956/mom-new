@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:mom_connect/features/chat/screens/chat_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// מסך SOS חירום - עזרה מיידית מהקהילה
 class SOSScreen extends StatefulWidget {
@@ -215,13 +217,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           Expanded(child: Text(name, style: const TextStyle(fontFamily: 'Heebo', fontSize: 14))),
           GestureDetector(
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('מתקשר ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
-                  backgroundColor: AppColors.info,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              final phoneNumber = number.replaceAll('*', '');
+              launchUrl(Uri.parse('tel:$phoneNumber'));
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -356,7 +353,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

@@ -439,7 +439,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Widget _buildStatItem(String value, String label) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label: $value', style: const TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      },
       child: Column(
         children: [
           Text(

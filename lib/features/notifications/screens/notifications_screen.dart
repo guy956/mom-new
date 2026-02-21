@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/app_strings.dart';
 import 'package:mom_connect/models/notification_model.dart';
+import 'package:mom_connect/features/chat/screens/chat_screen.dart';
+import 'package:mom_connect/features/events/screens/events_screen.dart';
+import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -145,6 +148,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           onSelected: (value) {
             if (value == 'clear') {
               _showClearConfirmation();
+            } else if (value == 'settings') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('הגדרות התראות', style: TextStyle(fontFamily: 'Heebo')),
+                  backgroundColor: AppColors.info,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
             }
           },
         ),
@@ -335,7 +346,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     });
 
     // Navigate based on notification type
-    // TODO: Implement navigation
+    switch (notification.type) {
+      case NotificationType.like:
+      case NotificationType.comment:
+      case NotificationType.mention:
+      case NotificationType.share:
+      case NotificationType.follow:
+        // Social notifications - navigate to feed (go back to main)
+        Navigator.pop(context);
+        break;
+      case NotificationType.message:
+      case NotificationType.groupMessage:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+        break;
+      case NotificationType.eventReminder:
+      case NotificationType.eventUpdate:
+      case NotificationType.eventCancelled:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+        break;
+      case NotificationType.milestone:
+      case NotificationType.vaccineReminder:
+      case NotificationType.growthReminder:
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TrackingScreen()));
+        break;
+      default:
+        break;
+    }
   }
 
   void _removeNotification(NotificationModel notification) {

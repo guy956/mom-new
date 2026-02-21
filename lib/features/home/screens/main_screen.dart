@@ -28,6 +28,8 @@ import 'package:mom_connect/services/auth_service.dart';
 import 'package:mom_connect/services/dynamic_config_service.dart';
 import 'package:mom_connect/features/accessibility/screens/accessibility_screen.dart';
 import 'package:mom_connect/features/legal/screens/legal_screen.dart';
+import 'package:mom_connect/features/notifications/screens/notifications_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -125,7 +127,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   child: Row(children: [
                     const Icon(Icons.campaign_rounded, color: Colors.white, size: 20), const SizedBox(width: 10),
                     Expanded(child: Text(ann['text'] ?? '', style: const TextStyle(fontFamily: 'Heebo', fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600))),
-                    if ((ann['link'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () {}),
+                    if ((ann['link'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () {
+                      final link = ann['link'].toString();
+                      launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+                    }),
                   ]),
                 );
               }),
@@ -898,10 +903,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               const SizedBox(height: 20),
               const Text('הגדרות', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              _settingsTile(Icons.person_outline_rounded, 'פרופיל', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () { Navigator.pop(context); setState(() => _currentIndex = 4); }),
+              _settingsTile(Icons.person_outline_rounded, 'פרופיל', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+              }),
               _settingsTile(Icons.notifications_outlined, 'התראות', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
                 Navigator.pop(context);
-                AppSnackbar.info(context, 'הגדרות התראות בקרוב...');
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
               }),
               _settingsTile(Icons.lock_outline_rounded, 'פרטיות', trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.textHint), onTap: () {
                 Navigator.pop(context);
@@ -1078,14 +1086,25 @@ class _NotificationsSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('התראות', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Heebo')),
-                TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: const Text('כל ההתראות סומנו כנקראו', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    );
-                  },
-                  child: Text('סמני הכל כנקרא', style: TextStyle(fontFamily: 'Heebo', color: AppColors.primary, fontWeight: FontWeight.w600)),
-                ),
+                Row(
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                    },
+                    child: Text('הצג הכל', style: TextStyle(fontFamily: 'Heebo', color: AppColors.primary, fontWeight: FontWeight.w600)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('כל ההתראות סומנו כנקראו', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      );
+                    },
+                    child: Text('סמני הכל כנקרא', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
               ],
             ),
           ),
@@ -1093,12 +1112,27 @@ class _NotificationsSheet extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
-                _buildNotif('מיכל לוין', 'אהבה את הפוסט שלך', Icons.favorite_rounded, AppColors.secondary, '5 דקות', true),
-                _buildNotif('MomBot', 'טיפ חדש בשבילך!', Icons.auto_awesome_rounded, const Color(0xFFD1C2D3), '10 דקות', true),
-                _buildNotif('נועה ישראלי', 'הגיבה: "מסכימה לגמרי!"', Icons.chat_bubble_rounded, AppColors.primary, '15 דקות', true),
-                _buildNotif('הישג חדש!', 'קיבלת את תג "דברנית"', Icons.emoji_events_rounded, AppColors.accent, '30 דקות', true),
-                _buildNotif('SOS קרוב', 'אמא באזורך צריכה עזרה', Icons.sos_rounded, AppColors.error, 'שעה', false),
-                _buildNotif('אירוע מחר', 'יוגה לאמהות - 10:00', Icons.event_rounded, AppColors.accent, '2 שעות', false),
+                _buildNotif('מיכל לוין', 'אהבה את הפוסט שלך', Icons.favorite_rounded, AppColors.secondary, '5 דקות', true, onTap: () {
+                  Navigator.pop(context);
+                }),
+                _buildNotif('MomBot', 'טיפ חדש בשבילך!', Icons.auto_awesome_rounded, const Color(0xFFD1C2D3), '10 דקות', true, onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AIChatScreen()));
+                }),
+                _buildNotif('נועה ישראלי', 'הגיבה: "מסכימה לגמרי!"', Icons.chat_bubble_rounded, AppColors.primary, '15 דקות', true, onTap: () {
+                  Navigator.pop(context);
+                }),
+                _buildNotif('הישג חדש!', 'קיבלת את תג "דברנית"', Icons.emoji_events_rounded, AppColors.accent, '30 דקות', true, onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()));
+                }),
+                _buildNotif('SOS קרוב', 'אמא באזורך צריכה עזרה', Icons.sos_rounded, AppColors.error, 'שעה', false, onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SOSScreen()));
+                }),
+                _buildNotif('אירוע מחר', 'יוגה לאמהות - 10:00', Icons.event_rounded, AppColors.accent, '2 שעות', false, onTap: () {
+                  Navigator.pop(context);
+                }),
               ],
             ),
           ),
@@ -1107,8 +1141,10 @@ class _NotificationsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildNotif(String title, String subtitle, IconData icon, Color color, String time, bool isUnread) {
-    return Container(
+  Widget _buildNotif(String title, String subtitle, IconData icon, Color color, String time, bool isUnread, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1145,6 +1181,7 @@ class _NotificationsSheet extends StatelessWidget {
           Text(time, style: TextStyle(color: AppColors.textHint, fontSize: 11, fontFamily: 'Heebo')),
         ],
       ),
+    ),
     );
   }
 }
@@ -1233,15 +1270,27 @@ class _SearchSheetState extends State<_SearchSheet> {
       children: [
         const Text('תוצאות חיפוש', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 12),
-        _buildResult('מיכל לוין', 'אמא לנועה (2)', Icons.person_rounded, AppColors.primary),
-        _buildResult('יוגה לאמהות', 'מחר ב-10:00', Icons.event_rounded, AppColors.accent),
-        _buildResult('טיפים לשינה', '23 תגובות', Icons.article_rounded, AppColors.success),
-        _buildResult('ד"ר רונית גולן', 'רופאת ילדים מאומתת', Icons.medical_services_rounded, AppColors.info),
+        _buildResult('מיכל לוין', 'אמא לנועה (2)', Icons.person_rounded, AppColors.primary, onTap: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+        }),
+        _buildResult('יוגה לאמהות', 'מחר ב-10:00', Icons.event_rounded, AppColors.accent, onTap: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
+        }),
+        _buildResult('טיפים לשינה', '23 תגובות', Icons.article_rounded, AppColors.success, onTap: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyTipsScreen()));
+        }),
+        _buildResult('ד"ר רונית גולן', 'רופאת ילדים מאומתת', Icons.medical_services_rounded, AppColors.info, onTap: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpertsScreen()));
+        }),
       ],
     );
   }
 
-  Widget _buildResult(String title, String subtitle, IconData icon, Color color) {
+  Widget _buildResult(String title, String subtitle, IconData icon, Color color, {VoidCallback? onTap}) {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(10),
@@ -1253,7 +1302,7 @@ class _SearchSheetState extends State<_SearchSheet> {
       ),
       title: Text(title, style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
       subtitle: Text(subtitle, style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary, fontSize: 13)),
-      onTap: () => Navigator.pop(context),
+      onTap: onTap ?? () => Navigator.pop(context),
       contentPadding: EdgeInsets.zero,
     );
   }
