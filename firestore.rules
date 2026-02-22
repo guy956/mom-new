@@ -29,10 +29,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Admin config and subcollections - contains API keys and sensitive config
+    // Admin config - non-sensitive docs readable by authenticated users, api_keys admin only
     match /admin_config/{doc} {
-      allow read: if isAuthenticated();
+      allow read: if doc != 'api_keys' && isAuthenticated();
       allow write: if isAdmin();
+    }
+    match /admin_config/api_keys {
+      allow read, write: if isAdmin();
     }
     
     // Feature flags - public read, admin write
@@ -142,10 +145,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Error logs - admin only
+    // Error logs - admin read, authenticated create
     match /error_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if true && // Allow error reporting from client
+      allow create: if isAuthenticated() &&
         request.resource.size() < 10240; // Limit document size to 10KB
     }
     
@@ -171,8 +174,10 @@ service cloud.firestore {
     }
 
     match /directMessages/{convId}/messages/{msgId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/directMessages/$(convId)).data.participants;
+      allow create: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/directMessages/$(convId)).data.participants;
       allow delete: if isAuthenticated() &&
         (resource.data.senderId == request.auth.uid || isAdmin());
     }
@@ -187,8 +192,10 @@ service cloud.firestore {
     }
 
     match /chatGroups/{groupId}/messages/{msgId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(groupId)).data.members;
+      allow create: if isAuthenticated() &&
+        request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(groupId)).data.members;
       allow delete: if isAuthenticated() &&
         (resource.data.senderId == request.auth.uid || isAdmin());
     }

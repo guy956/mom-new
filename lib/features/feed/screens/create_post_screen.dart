@@ -80,6 +80,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         onPressed: () => Navigator.pop(context),
         icon: const Icon(Icons.close_rounded),
         color: AppColors.textPrimary,
+        tooltip: 'סגור',
       ),
       title: Text(
         _isPoll ? 'סקר חדש' : 'פוסט חדש',
@@ -334,6 +335,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       },
                       icon: const Icon(Icons.remove_circle_outline),
                       color: AppColors.error,
+                      tooltip: 'מחק',
                     ),
                 ],
               ),

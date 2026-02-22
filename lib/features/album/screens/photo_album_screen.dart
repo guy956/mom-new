@@ -128,6 +128,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
         actions: [
           IconButton(
@@ -783,6 +784,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
               child: IconButton(
                 icon: const Icon(Icons.close_rounded, color: Colors.white, size: 30),
                 onPressed: () => Navigator.pop(ctx),
+                tooltip: 'סגור',
               ),
             ),
             Positioned(

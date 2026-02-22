@@ -129,6 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         IconButton(
           icon: const Icon(Icons.settings_outlined),
           color: ColorConfig.textPrimary,
+          tooltip: 'הגדרות',
           onPressed: () => _showSettingsSheet(),
         ),
       ],
@@ -380,6 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                   child: IconButton(
                     icon: const Icon(Icons.share_outlined),
                     color: AppColors.textPrimary,
+                    tooltip: 'שתף',
                     onPressed: () {
                       final profileUrl = 'https://momit.pages.dev/profile/${_user.id}';
                       Clipboard.setData(ClipboardData(text: profileUrl));
@@ -709,6 +711,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   color: Colors.white,
+                  tooltip: 'ערוך',
                   onPressed: () => _showEditChildSheet(child),
                 ),
               ],
@@ -2036,7 +2039,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               style: TextStyle(fontFamily: 'Heebo', height: 1.5),
             ),
             SizedBox(height: 16),
-            Text('גרסה 3.0.0', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 12)),
+            Text('גרסה 1.0.0', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 12)),
           ],
         ),
         actions: [

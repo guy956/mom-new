@@ -297,7 +297,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: TextField(
+      child: Semantics(
+        label: 'חיפוש בפוסטים',
+        textField: true,
+        child: TextField(
         controller: _searchController,
         textDirection: TextDirection.rtl,
         style: const TextStyle(fontFamily: 'Heebo', fontSize: 14),
@@ -308,6 +311,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, size: 18),
+                  tooltip: 'נקה',
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -331,6 +335,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
         onChanged: (value) => setState(() => _searchQuery = value),
+        ),
       ),
     );
   }
@@ -502,10 +507,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         padding: const EdgeInsets.symmetric(horizontal: 8),
         tabAlignment: TabAlignment.start,
         tabs: const [
-          Tab(text: 'פופולרי'),
-          Tab(text: 'חדש'),
-          Tab(text: 'באזורי'),
-          Tab(text: 'עוקבות'),
+          Tab(child: Semantics(label: 'פופולרי', button: true, child: Text('פופולרי'))),
+          Tab(child: Semantics(label: 'חדש', button: true, child: Text('חדש'))),
+          Tab(child: Semantics(label: 'באזורי', button: true, child: Text('באזורי'))),
+          Tab(child: Semantics(label: 'עוקבות', button: true, child: Text('עוקבות'))),
         ],
       ),
     );
@@ -699,6 +704,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           // Menu
           IconButton(
             icon: const Icon(Icons.more_horiz, color: AppColors.textHint),
+            tooltip: 'אפשרויות',
             onPressed: () => _showPostMenu(post),
           ),
         ],
@@ -877,27 +883,31 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Row(
-            children: [
-              Icon(icon, size: 21, color: color),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Heebo',
-                  fontSize: 12.5,
-                  color: color,
-                  fontWeight: FontWeight.w600,
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 21, color: color),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Heebo',
+                    fontSize: 12.5,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

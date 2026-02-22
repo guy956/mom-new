@@ -75,6 +75,7 @@ class _GamificationScreenState extends State<GamificationScreen> with SingleTick
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
         title: const Text('ההישגים שלי', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
         actions: [

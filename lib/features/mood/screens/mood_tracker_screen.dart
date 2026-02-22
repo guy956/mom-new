@@ -52,12 +52,14 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
         title: const Text('איך את מרגישה?', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.insights),
             onPressed: () => _showInsights(),
+            tooltip: 'מידע',
           ),
           IconButton(
             icon: const Icon(Icons.home_outlined, color: AppColors.textSecondary),

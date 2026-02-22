@@ -144,6 +144,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
         onPressed: () => Navigator.pop(context),
+        tooltip: 'חזרה',
       ),
       actions: [
         IconButton(
@@ -227,6 +228,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
                   },
+                  tooltip: 'נקה',
                 )
               : null,
           filled: true,
@@ -263,15 +265,19 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final isSelected = _selectedCategory == category;
     return Padding(
       padding: const EdgeInsets.only(left: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            setState(() => _selectedCategory = category);
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
+      child: Semantics(
+        label: 'סנן לפי קטגוריה: $label',
+        button: true,
+        selected: isSelected,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() => _selectedCategory = category);
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               gradient: isSelected ? AppColors.primaryGradient : null,
@@ -299,6 +305,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -375,11 +382,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final condition = (item['condition'] ?? '').toString();
     final location = (item['location'] ?? '').toString();
     final category = (item['category'] ?? '').toString();
+    final priceLabel = (price == 0 || price == null) ? 'למסירה חינם' : 'מחיר: $price שקל';
+    final locationLabel = location.isNotEmpty ? ', מיקום: $location' : '';
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showProductDetails(item),
+    return Semantics(
+      label: '$title$locationLabel, $priceLabel',
+      button: true,
+      hint: 'לחצי לפרטים נוספים',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showProductDetails(item),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
@@ -455,12 +468,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   Positioned(
                     top: 8,
                     left: 8,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _toggleSaveProduct(id, title),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
+                    child: Semantics(
+                      label: _savedProductIds.contains(id) ? 'הסר מהשמורים: $title' : 'שמור פריט: $title',
+                      button: true,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _toggleSaveProduct(id, title),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -481,6 +497,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 ? AppColors.secondary
                                 : AppColors.textHint,
                           ),
+                        ),
                         ),
                       ),
                     ),
@@ -552,6 +569,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -780,6 +798,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   icon: const Icon(
                                       Icons.favorite_rounded,
                                       color: AppColors.secondary),
+                                  tooltip: 'הסר מהשמורים',
                                   onPressed: () {
                                     setState(() =>
                                         _savedProductIds.remove(itemId));
@@ -1068,18 +1087,21 @@ class _ProductDetailsSheet extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4))
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
+                  child: Semantics(
+                    label: 'שליחת הודעה לתורמת עבור: $title',
+                    button: true,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4))
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
                       onPressed: () async {
                         final creatorId = (item['creatorId'] ?? '').toString();
                         final creatorName = (item['creatorName'] ?? seller).toString();
@@ -1175,58 +1197,67 @@ class _ProductDetailsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
+                ),
                 const SizedBox(width: 10),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onToggleSave,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        isSaved
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: isSaved
-                            ? AppColors.secondary
-                            : AppColors.textHint,
+                Semantics(
+                  label: isSaved ? 'הסר מהשמורים: $title' : 'שמור פריט: $title',
+                  button: true,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onToggleSave,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          isSaved
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isSaved
+                              ? AppColors.secondary
+                              : AppColors.textHint,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () async {
-                      final shareText = StringBuffer();
-                      shareText.writeln(title);
-                      if (description.isNotEmpty) {
-                        shareText.writeln(description);
-                      }
-                      if (location.isNotEmpty) {
-                        shareText.writeln('מיקום: $location');
-                      }
-                      final priceLabel = (price == 0 || price == null) ? 'למסירה חינם' : '$price ש"ח';
-                      shareText.writeln(priceLabel);
-                      shareText.writeln('מתוך אפליקציית MOMIT');
-                      await SharePlus.instance.share(
-                        ShareParams(text: shareText.toString()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(14),
+                Semantics(
+                  label: 'שיתוף פריט: $title',
+                  button: true,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        final shareText = StringBuffer();
+                        shareText.writeln(title);
+                        if (description.isNotEmpty) {
+                          shareText.writeln(description);
+                        }
+                        if (location.isNotEmpty) {
+                          shareText.writeln('מיקום: $location');
+                        }
+                        final priceLabel = (price == 0 || price == null) ? 'למסירה חינם' : '$price ש"ח';
+                        shareText.writeln(priceLabel);
+                        shareText.writeln('מתוך אפליקציית MOMIT');
+                        await SharePlus.instance.share(
+                          ShareParams(text: shareText.toString()),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.share_outlined,
+                            color: AppColors.textSecondary),
                       ),
-                      child: const Icon(Icons.share_outlined,
-                          color: AppColors.textSecondary),
                     ),
                   ),
                 ),
@@ -1726,36 +1757,41 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
                       runSpacing: 8,
                       children: categories.map((cat) {
                         final isSelected = _selectedCategory == cat;
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () =>
-                                setState(() => _selectedCategory = cat),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? AppColors.primaryGradient
-                                    : null,
-                                color: isSelected ? null : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: isSelected
-                                        ? Colors.transparent
-                                        : AppColors.border),
-                              ),
-                              child: Text(cat,
-                                  style: TextStyle(
-                                      fontFamily: 'Heebo',
-                                      fontSize: 12,
+                        return Semantics(
+                          label: 'קטגוריה: $cat',
+                          button: true,
+                          selected: isSelected,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () =>
+                                  setState(() => _selectedCategory = cat),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  gradient: isSelected
+                                      ? AppColors.primaryGradient
+                                      : null,
+                                  color: isSelected ? null : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
                                       color: isSelected
-                                          ? Colors.white
-                                          : AppColors.textPrimary,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w600
-                                          : FontWeight.w500)),
+                                          ? Colors.transparent
+                                          : AppColors.border),
+                                ),
+                                child: Text(cat,
+                                    style: TextStyle(
+                                        fontFamily: 'Heebo',
+                                        fontSize: 12,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w500)),
+                              ),
                             ),
                           ),
                         );
@@ -1775,37 +1811,42 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
                     runSpacing: 8,
                     children: _conditionOptions.map((cond) {
                       final isSelected = _selectedCondition == cond;
-                      return Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () =>
-                              setState(() => _selectedCondition = cond),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                              gradient: isSelected
-                                  ? AppColors.primaryGradient
-                                  : null,
-                              color: isSelected ? null : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                  color: isSelected
-                                      ? Colors.transparent
-                                      : AppColors.border),
-                            ),
-                            child: Text(
-                              cond,
-                              style: TextStyle(
-                                  fontFamily: 'Heebo',
-                                  fontSize: 12,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AppColors.textPrimary,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.w500),
+                      return Semantics(
+                        label: 'מצב פריט: $cond',
+                        button: true,
+                        selected: isSelected,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () =>
+                                setState(() => _selectedCondition = cond),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: isSelected
+                                    ? AppColors.primaryGradient
+                                    : null,
+                                color: isSelected ? null : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: isSelected
+                                        ? Colors.transparent
+                                        : AppColors.border),
+                              ),
+                              child: Text(
+                                cond,
+                                style: TextStyle(
+                                    fontFamily: 'Heebo',
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textPrimary,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500),
+                              ),
                             ),
                           ),
                         ),
@@ -1823,35 +1864,39 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
   }
 
   Widget _buildAddPhotoButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _pickImage,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 100,
-          height: 100,
-          margin: const EdgeInsets.only(left: 8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                style: BorderStyle.solid),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_a_photo_rounded,
-                  color: AppColors.primary, size: 28),
-              const SizedBox(height: 4),
-              Text('הוספי תמונה',
-                  style: TextStyle(
-                      fontFamily: 'Heebo',
-                      fontSize: 11,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600)),
-            ],
+    return Semantics(
+      label: 'הוספת תמונה לפריט',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _pickImage,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            width: 100,
+            height: 100,
+            margin: const EdgeInsets.only(left: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  style: BorderStyle.solid),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_a_photo_rounded,
+                    color: AppColors.primary, size: 28),
+                const SizedBox(height: 4),
+                Text('הוספי תמונה',
+                    style: TextStyle(
+                        fontFamily: 'Heebo',
+                        fontSize: 11,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ),
       ),

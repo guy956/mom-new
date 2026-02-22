@@ -24,10 +24,7 @@ dependencies:
   
   # State Management
   provider: ^6.1.5+1
-  
-  # Navigation
-  go_router: ^15.1.2
-  
+
   # Storage
   shared_preferences: ^2.5.3
   hive: ^2.2.3

@@ -29,6 +29,7 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
         title: const Text('מומחים מאומתים', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
         actions: [
@@ -328,7 +329,7 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                       );
                     }
                   },
-                  tooltip: phone,
+                  tooltip: 'התקשר',
                 ),
               if (email.isNotEmpty)
                 IconButton(
@@ -341,7 +342,7 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                       );
                     }
                   },
-                  tooltip: email,
+                  tooltip: 'שלח אימייל',
                 ),
               ElevatedButton(
                 onPressed: () => _showBookingSheet(expert),

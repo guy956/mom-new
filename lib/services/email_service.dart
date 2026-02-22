@@ -22,7 +22,7 @@ class EmailService {
   /// Admin email address to receive notifications
   /// Falls back to hardcoded admin email if env variable is not set
   String get _adminEmail =>
-      dotenv.env['ADMIN_EMAILS']?.split(',').first.trim() ?? 'ola.cos85@gmail.com';
+      dotenv.env['ADMIN_EMAILS']?.split(',').first.trim() ?? 'admin@momit.co.il';
 
   /// Send notification email to admin
   ///

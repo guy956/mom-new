@@ -29,6 +29,7 @@ class WhatsAppIntegrationScreen extends StatelessWidget {
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_rounded),
               onPressed: () => Navigator.pop(context),
+              tooltip: 'חזרה',
             ),
             title: Row(
               children: [

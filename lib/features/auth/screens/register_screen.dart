@@ -296,6 +296,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Navigator.pop(context);
                 }
               },
+              tooltip: 'חזרה',
               icon: const Icon(Icons.arrow_forward),
             ),
             Row(
@@ -441,6 +442,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              tooltip: 'הסתר/הצג סיסמה',
             ),
           ),
           onChanged: (_) => setState(() {}),
@@ -463,6 +465,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             suffixIcon: IconButton(
               icon: Icon(_obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
               onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              tooltip: 'הסתר/הצג סיסמה',
             ),
           ),
           validator: (v) {

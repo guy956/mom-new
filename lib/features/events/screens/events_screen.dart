@@ -246,6 +246,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         IconButton(
           icon: const Icon(Icons.filter_list_rounded),
           color: Colors.white,
+          tooltip: 'סינון',
           onPressed: _showFilterSheet,
         ),
       ],
@@ -260,7 +261,10 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         child: Column(
           children: [
             // Search Bar
-            TextField(
+            Semantics(
+              label: 'חיפוש אירועים',
+              textField: true,
+              child: TextField(
               controller: _searchController,
               textDirection: TextDirection.rtl,
               decoration: InputDecoration(
@@ -270,6 +274,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded, size: 20),
+                        tooltip: 'נקה',
                         onPressed: () {
                           _searchController.clear();
                           setState(() {});
@@ -284,6 +289,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -297,7 +303,11 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   final filter = _filters[index];
                   final isSelected = _selectedFilter == filter['id'];
 
-                  return GestureDetector(
+                  return Semantics(
+                    button: true,
+                    label: 'סינון: ${filter['name']}',
+                    selected: isSelected,
+                    child: GestureDetector(
                     onTap: () {
                       HapticFeedback.selectionClick();
                       setState(() => _selectedFilter = filter['id']);
@@ -326,6 +336,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                           ],
                         ),
                       ),
+                    ),
                     ),
                   );
                 },
@@ -363,36 +374,41 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+    return Semantics(
+      button: true,
+      label: label,
+      toggled: isSelected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? AppColors.primary : AppColors.textHint,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Heebo',
-                fontSize: 12,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppColors.primary : AppColors.textHint,
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'Heebo',
+                  fontSize: 12,
+                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -410,8 +426,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
           labelStyle: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontFamily: 'Heebo'),
           tabs: const [
-            Tab(text: 'רשימה'),
-            Tab(text: 'לוח שנה'),
+            Tab(child: Semantics(label: 'רשימת אירועים', button: true, child: Text('רשימה'))),
+            Tab(child: Semantics(label: 'לוח שנה', button: true, child: Text('לוח שנה'))),
           ],
         ),
       ),
@@ -1270,7 +1286,10 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                         final participantIds = List<String>.from(event['participantIds'] ?? []);
                         final isRegistered = participantIds.contains(currentUserId);
 
-                        return SizedBox(
+                        return Semantics(
+                          button: true,
+                          label: isRegistered ? 'ביטול הרשמה לאירוע ${event['title'] ?? ''}' : (hasAvailableSpots ? 'הרשמה לאירוע ${event['title'] ?? ''}' : 'האירוע מלא'),
+                          child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: (isRegistered || hasAvailableSpots)
@@ -1333,6 +1352,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                               isRegistered ? 'ביטול הרשמה' : (hasAvailableSpots ? 'הרשמה לאירוע' : 'האירוע מלא'),
                               style: const TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.w600),
                             ),
+                          ),
                           ),
                         );
                       },
@@ -1402,7 +1422,10 @@ class _EventCard extends StatelessWidget {
     final hasAvailableSpots = maxAttendees == 0 || attendees < maxAttendees;
     final spotsLeft = maxAttendees == 0 ? 999 : maxAttendees - attendees;
 
-    return GestureDetector(
+    return Semantics(
+      label: 'אירוע: $title',
+      button: true,
+      child: GestureDetector(
       onTap: () {
         final state = context.findAncestorStateOfType<_EventsScreenState>();
         state?._showEventDetailSheet(context, event);
@@ -1699,7 +1722,10 @@ class _EventCard extends StatelessWidget {
                       final participantIds = List<String>.from(event['participantIds'] ?? []);
                       final isRegistered = participantIds.contains(currentUserId);
 
-                      return SizedBox(
+                      return Semantics(
+                        button: true,
+                        label: isRegistered ? 'ביטול הרשמה לאירוע $title' : (hasAvailableSpots ? 'הרשמה לאירוע $title' : 'האירוע מלא'),
+                        child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: (isRegistered || hasAvailableSpots)
@@ -1759,6 +1785,7 @@ class _EventCard extends StatelessWidget {
                             style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600),
                           ),
                         ),
+                        ),
                       );
                     },
                   ),
@@ -1767,6 +1794,7 @@ class _EventCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

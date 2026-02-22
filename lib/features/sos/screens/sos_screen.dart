@@ -60,6 +60,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
         title: Text(
           _sosActive ? 'SOS פעיל' : 'עזרה מהקהילה',

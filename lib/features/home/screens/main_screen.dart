@@ -200,6 +200,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     _buildIconBtn(
                       Icons.menu_rounded,
                       onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      tooltip: 'תפריט',
                     ),
                     const SizedBox(width: 12),
                     // Dynamic Logo - uses custom logo if available, fallback to default icon
@@ -242,7 +243,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       ),
                     ),
                     const Spacer(),
-                    _buildIconBtn(Icons.search_rounded, onTap: _showSearchSheet),
+                    _buildIconBtn(Icons.search_rounded, onTap: _showSearchSheet, tooltip: 'חיפוש'),
                     const SizedBox(width: 6),
                     StreamBuilder<List<Map<String, dynamic>>>(
                       stream: Provider.of<FirestoreService>(context, listen: false)
@@ -254,6 +255,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           child: _buildIconBtn(
                             Icons.notifications_outlined,
                             onTap: _showNotifications,
+                            tooltip: 'התראות',
                           ),
                         );
                       },
@@ -308,8 +310,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildIconBtn(IconData icon, {required VoidCallback onTap}) {
-    return Material(
+  Widget _buildIconBtn(IconData icon, {required VoidCallback onTap, String? tooltip}) {
+    Widget btn = Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
@@ -327,6 +329,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+    if (tooltip != null) {
+      return Tooltip(message: tooltip, child: btn);
+    }
+    return btn;
   }
 
   // ===== PREMIUM QUICK ACCESS =====
@@ -365,9 +371,12 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildPremiumQuickAction(String label, Color color, IconData fallbackIcon, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
           onTap: () {
             HapticFeedback.lightImpact();
             onTap();
@@ -417,6 +426,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -567,6 +577,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           HapticFeedback.mediumImpact();
           _showFullCreatePostSheet(); // Directly open post sheet
         },
+        tooltip: 'פוסט חדש',
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: const Icon(
@@ -651,6 +662,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                       ),
                       IconButton(
                         icon: Icon(Icons.close_rounded, color: AppColors.textHint),
+                        tooltip: 'סגור',
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -1089,7 +1101,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               style: TextStyle(fontFamily: 'Heebo', height: 1.6),
             ),
             SizedBox(height: 16),
-            Text('גרסה 3.0.0', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 12)),
+            Text('גרסה 1.0.0', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 12)),
           ],
         ),
         actions: [

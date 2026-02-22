@@ -105,6 +105,7 @@ class _ChatScreenState extends State<ChatScreen>
               _isSearching ? Icons.close : Icons.search,
               color: _isSearching ? AppColors.primary : AppColors.textSecondary,
             ),
+            tooltip: _isSearching ? 'סגור' : 'חיפוש',
             onPressed: () {
               setState(() {
                 _isSearching = !_isSearching;
@@ -123,7 +124,10 @@ class _ChatScreenState extends State<ChatScreen>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: TextField(
+      child: Semantics(
+        label: 'חיפוש שיחות',
+        textField: true,
+        child: TextField(
         controller: _searchController,
         autofocus: true,
         textDirection: TextDirection.rtl,
@@ -135,6 +139,7 @@ class _ChatScreenState extends State<ChatScreen>
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
+                  tooltip: 'נקה',
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -150,6 +155,7 @@ class _ChatScreenState extends State<ChatScreen>
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
         onChanged: (value) => setState(() => _searchQuery = value),
+        ),
       ),
     );
   }
@@ -175,9 +181,9 @@ class _ChatScreenState extends State<ChatScreen>
         indicatorColor: AppColors.primary,
         indicatorWeight: 3,
         tabs: const [
-          Tab(text: 'הכל'),
-          Tab(text: 'קבוצות'),
-          Tab(text: 'פרטי'),
+          Tab(child: Semantics(label: 'הכל', button: true, child: Text('הכל'))),
+          Tab(child: Semantics(label: 'קבוצות', button: true, child: Text('קבוצות'))),
+          Tab(child: Semantics(label: 'פרטי', button: true, child: Text('פרטי'))),
         ],
       ),
     );
@@ -400,7 +406,12 @@ class _ChatScreenState extends State<ChatScreen>
           ),
         );
       },
-      child: InkWell(
+      child: Semantics(
+        button: true,
+        label: isGroup
+            ? 'קבוצה: ${chat['name'] ?? ''}'
+            : 'שיחה עם ${chat['name'] ?? ''}',
+        child: InkWell(
         onTap: () => _openChat(chat),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1138,6 +1149,7 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
                 IconButton(
                   icon:
                       const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                  tooltip: 'חזרה',
                   onPressed: () => Navigator.pop(context),
                 ),
                 if (_isGroup)
@@ -1320,7 +1332,10 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: Semantics(
+                      label: 'כתיבת הודעה',
+                      textField: true,
+                      child: TextField(
                       controller: _messageController,
                       textDirection: TextDirection.rtl,
                       style: const TextStyle(fontFamily: 'Heebo'),
@@ -1338,10 +1353,14 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
                             horizontal: 16, vertical: 10),
                       ),
                       onSubmitted: (_) => _sendMessage(),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
+                  Semantics(
+                    button: true,
+                    label: 'שליחת הודעה',
+                    child: GestureDetector(
                     onTap: _sendMessage,
                     child: Container(
                       padding: const EdgeInsets.all(10),
@@ -1351,6 +1370,7 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
                       ),
                       child: const Icon(Icons.send,
                           color: Colors.white, size: 20),
+                    ),
                     ),
                   ),
                 ],

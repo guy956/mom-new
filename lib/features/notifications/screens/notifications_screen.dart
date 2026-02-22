@@ -118,6 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_rounded),
                 color: AppColors.textPrimary,
+                tooltip: 'חזרה',
                 onPressed: () => Navigator.pop(context),
               ),
               const Text(

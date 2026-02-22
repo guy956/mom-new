@@ -55,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           icon: const Icon(Icons.arrow_back_ios_rounded),
           color: AppColors.textPrimary,
           onPressed: () => Navigator.pop(context),
+          tooltip: 'חזרה',
         ),
       ),
       body: SafeArea(
@@ -160,6 +161,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             suffixIcon: IconButton(
               icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textHint),
               onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+              tooltip: 'הסתר/הצג סיסמה',
             ),
             filled: true, fillColor: AppColors.surfaceVariant,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),

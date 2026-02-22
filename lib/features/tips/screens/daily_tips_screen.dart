@@ -193,6 +193,7 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_rounded),
         onPressed: () => Navigator.pop(context),
+        tooltip: 'חזרה',
       ),
       title: const Text(
         'טיפים ומאמרים',
@@ -261,6 +262,7 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
               ? IconButton(
                   icon: const Icon(Icons.clear,
                       color: AppColors.textHint, size: 20),
+                  tooltip: 'נקה',
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');

@@ -82,24 +82,28 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
               ],
             ),
           ),
-          floatingActionButton: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: AppColors.momGradient,
-              boxShadow: [
-                BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 6), spreadRadius: -2),
-                BoxShadow(color: AppColors.secondary.withValues(alpha: 0.15), blurRadius: 30, offset: const Offset(0, 10), spreadRadius: -4),
-              ],
-            ),
-            child: FloatingActionButton.extended(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                _showAddRecordSheet();
-              },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
-              label: const Text('הוסף רשומה', style: TextStyle(fontFamily: 'Heebo', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+          floatingActionButton: Semantics(
+            label: 'הוספת רשומת מעקב חדשה',
+            button: true,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: AppColors.momGradient,
+                boxShadow: [
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 6), spreadRadius: -2),
+                  BoxShadow(color: AppColors.secondary.withValues(alpha: 0.15), blurRadius: 30, offset: const Offset(0, 10), spreadRadius: -4),
+                ],
+              ),
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  _showAddRecordSheet();
+                },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                label: const Text('הוסף רשומה', style: TextStyle(fontFamily: 'Heebo', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+              ),
             ),
           ),
         );
@@ -180,16 +184,21 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
   Widget _buildChildCard(int index, ChildProfile child) {
     final isSelected = _selectedChildIndex == index;
     final color = child.isBoy ? AppColors.info : AppColors.secondary;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _selectedChildIndex = index);
-      },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        _showEditChildDialog(child);
-      },
-      child: AnimatedContainer(
+    return Semantics(
+      label: 'ילד: ${child.name}, גיל: ${child.ageDisplay}',
+      button: true,
+      selected: isSelected,
+      hint: 'לחצי לבחירה, לחצה ממושכת לעריכה',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _selectedChildIndex = index);
+        },
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          _showEditChildDialog(child);
+        },
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         margin: const EdgeInsets.only(left: 10),
@@ -225,16 +234,20 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildAddChildCard() {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        _showAddChildDialog();
-      },
-      child: Container(
+    return Semantics(
+      label: 'הוספת ילד חדש',
+      button: true,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _showAddChildDialog();
+        },
+        child: Container(
         margin: const EdgeInsets.only(left: 10),
         padding: const EdgeInsets.all(12),
         width: 90,
@@ -260,6 +273,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -273,48 +287,51 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
     final diaperCount = service.getTodayDiaperCount(child.id);
     final latestGrowth = service.getLatestGrowth(child.id);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(color: AppColors.primary.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 6), spreadRadius: -4),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AppColors.primary.withValues(alpha: 0.12), AppColors.primary.withValues(alpha: 0.04)]),
-                  borderRadius: BorderRadius.circular(12),
+    return Semantics(
+      label: 'סיכום יומי: שינה ${sleepHours.toStringAsFixed(1)} שעות, ${feedingCount} האכלות, ${diaperCount} חיתולים',
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: AppColors.primary.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 6), spreadRadius: -4),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [AppColors.primary.withValues(alpha: 0.12), AppColors.primary.withValues(alpha: 0.04)]),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text('סיכום יומי', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.primary)),
                 ),
-                child: const Text('סיכום יומי', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.primary)),
-              ),
-              const Spacer(),
-              Icon(Icons.today_rounded, size: 16, color: AppColors.textHint),
-              const SizedBox(width: 4),
-              Text(DateFormat('dd.MM.yyyy').format(DateTime.now()), style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildQuickStatItem(Icons.bedtime_rounded, 'שינה', '${sleepHours.toStringAsFixed(1)}h', AppColors.trackingSleep),
-              const SizedBox(width: 8),
-              _buildQuickStatItem(Icons.restaurant_rounded, 'האכלות', '$feedingCount', AppColors.trackingFeeding),
-              const SizedBox(width: 8),
-              _buildQuickStatItem(Icons.baby_changing_station_rounded, 'חיתולים', '$diaperCount', AppColors.trackingDiaper),
-              const SizedBox(width: 8),
-              _buildQuickStatItem(Icons.straighten_rounded, 'גובה', latestGrowth?.height != null ? '${latestGrowth!.height!.toStringAsFixed(0)}cm' : '-', AppColors.trackingGrowth),
-            ],
-          ),
-        ],
+                const Spacer(),
+                Icon(Icons.today_rounded, size: 16, color: AppColors.textHint),
+                const SizedBox(width: 4),
+                Text(DateFormat('dd.MM.yyyy').format(DateTime.now()), style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _buildQuickStatItem(Icons.bedtime_rounded, 'שינה', '${sleepHours.toStringAsFixed(1)}h', AppColors.trackingSleep),
+                const SizedBox(width: 8),
+                _buildQuickStatItem(Icons.restaurant_rounded, 'האכלות', '$feedingCount', AppColors.trackingFeeding),
+                const SizedBox(width: 8),
+                _buildQuickStatItem(Icons.baby_changing_station_rounded, 'חיתולים', '$diaperCount', AppColors.trackingDiaper),
+                const SizedBox(width: 8),
+                _buildQuickStatItem(Icons.straighten_rounded, 'גובה', latestGrowth?.height != null ? '${latestGrowth!.height!.toStringAsFixed(0)}cm' : '-', AppColors.trackingGrowth),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -423,8 +440,13 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
 
     final maxY = _showWeight ? 16.0 : 100.0;
     final unit = _showWeight ? 'kg' : 'cm';
+    final chartDescription = spots.isEmpty
+        ? 'גרף גדילה - אין מדידות עדיין'
+        : 'גרף גדילה - ${_showWeight ? "משקל" : "גובה"} של ${child.name}, ${spots.length} נקודות מדידה';
 
-    return Container(
+    return Semantics(
+      label: chartDescription,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -509,16 +531,22 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildChartToggle(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(color: isSelected ? AppColors.primary : Colors.transparent, borderRadius: BorderRadius.circular(12)),
-        child: Text(label, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: isSelected ? Colors.white : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+    return Semantics(
+      label: 'הצג גרף $label',
+      button: true,
+      selected: isSelected,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(color: isSelected ? AppColors.primary : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+          child: Text(label, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: isSelected ? Colors.white : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+        ),
       ),
     );
   }
@@ -593,7 +621,9 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
       ]));
     }
 
-    return Container(
+    return Semantics(
+      label: 'גרף שעות שינה לשבוע האחרון של ${child.name}',
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
       child: Column(
@@ -650,6 +680,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
             ],
           ),
         ],
+      ),
       ),
     );
   }
@@ -963,6 +994,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
     final color = TrackingHelpers.typeColor(record.type);
     final dateStr = _formatDate(record.dateTime);
     final timeStr = DateFormat('HH:mm').format(record.dateTime);
+    final typeLabel = TrackingHelpers.typeLabel(record.type);
 
     return Dismissible(
       key: Key(record.id),
@@ -980,9 +1012,13 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
       confirmDismiss: (direction) async {
         return await _confirmDelete(context, record, service);
       },
-      child: GestureDetector(
-        onTap: () => _showEditRecordSheet(record),
-        child: Container(
+      child: Semantics(
+        label: 'רשומת $typeLabel מתאריך $dateStr בשעה $timeStr',
+        button: true,
+        hint: 'לחצי לעריכה, גררי לשמאל למחיקה',
+        child: GestureDetector(
+          onTap: () => _showEditRecordSheet(record),
+          child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1026,6 +1062,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -1166,20 +1203,25 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
 
   Widget _buildAddTypeOption(TrackingType type) {
     final color = TrackingHelpers.typeColor(type);
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
-        _showRecordFormSheet(type, null);
-      },
-      child: Container(
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withValues(alpha: 0.3))),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(TrackingHelpers.typeEmoji(type), style: const TextStyle(fontSize: 32)),
-            const SizedBox(height: 8),
-            Text(TrackingHelpers.typeLabel(type), style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, color: color)),
-          ],
+    final label = TrackingHelpers.typeLabel(type);
+    return Semantics(
+      label: 'הוספת רשומת $label',
+      button: true,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pop(context);
+          _showRecordFormSheet(type, null);
+        },
+        child: Container(
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withValues(alpha: 0.3))),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(TrackingHelpers.typeEmoji(type), style: const TextStyle(fontSize: 32)),
+              const SizedBox(height: 8),
+              Text(label, style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
         ),
       ),
     );
@@ -1264,6 +1306,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                         if (isEdit)
                           IconButton(
                             icon: const Icon(Icons.delete, color: AppColors.error),
+                            tooltip: 'מחק',
                             onPressed: () {
                               Navigator.pop(ctx);
                               _confirmDelete(context, existing, _service);
