@@ -70,21 +70,6 @@ class TrackingService extends ChangeNotifier {
     _records.sort((a, b) => b.dateTime.compareTo(a.dateTime));
   }
 
-  void _saveAllToHive() {
-    final childrenBox = Hive.box<String>(_childrenBoxName);
-    final recordsBox = Hive.box<String>(_recordsBoxName);
-
-    childrenBox.clear();
-    for (final child in _children) {
-      childrenBox.put(child.id, jsonEncode(child.toJson()));
-    }
-
-    recordsBox.clear();
-    for (final record in _records) {
-      recordsBox.put(record.id, jsonEncode(record.toJson()));
-    }
-  }
-
   // ===== Sync helpers =====
   /// Convert ChildProfile (tracking) to ChildModel (profile)
   ChildModel childProfileToModel(ChildProfile cp) {
@@ -102,7 +87,7 @@ class TrackingService extends ChangeNotifier {
       id: cm.id,
       name: cm.name,
       birthDate: cm.birthDate,
-      gender: cm.gender == Gender.male ? 'male' : 'female',
+      gender: cm.gender == Gender.male ? 'male' : (cm.gender == Gender.female ? 'female' : 'unknown'),
     );
   }
 
@@ -121,7 +106,7 @@ class TrackingService extends ChangeNotifier {
         final idx = _children.indexWhere((c) => c.id == cm.id);
         if (idx != -1) {
           final existing = _children[idx];
-          final newGender = cm.gender == Gender.male ? 'male' : 'female';
+          final newGender = cm.gender == Gender.male ? 'male' : (cm.gender == Gender.female ? 'female' : 'unknown');
           if (existing.name != cm.name || existing.birthDate != cm.birthDate || existing.gender != newGender) {
             _children[idx] = ChildProfile(
               id: cm.id,
@@ -271,14 +256,4 @@ class TrackingService extends ChangeNotifier {
     return growthRecords.isNotEmpty ? growthRecords.first : null;
   }
 
-  // ===== Demo data seed (disabled - kept for reference) =====
-  // void _seedDemoData() {
-  //   // Demo data seeding has been removed from production.
-  //   // New users now start with an empty tracking screen.
-  //   // The demo data previously created fake children (נועה, איתן)
-  //   // and sample records for growth, sleep, feeding, diapers,
-  //   // milestones, and health. It was called on first launch when
-  //   // _children.isEmpty. This is no longer needed since the app
-  //   // syncs real children from the user's profile.
-  // }
 }

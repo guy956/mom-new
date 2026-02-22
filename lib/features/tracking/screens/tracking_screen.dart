@@ -1803,6 +1803,9 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                   onPressed: () {
                     Navigator.pop(ctx);
                     _service.deleteChild(existing.id);
+                    try {
+                      context.read<AppState>().removeChild(existing.id);
+                    } catch (_) {}
                     if (_selectedChildIndex >= _service.children.length && _selectedChildIndex > 0) {
                       setState(() => _selectedChildIndex = _service.children.length - 1);
                     }
@@ -1829,7 +1832,9 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                   try {
                     final appState = context.read<AppState>();
                     final childModel = _service.childProfileToModel(childData);
-                    if (!isEdit) {
+                    if (isEdit) {
+                      appState.updateChild(childModel);
+                    } else {
                       appState.addChild(childModel);
                     }
                   } catch (_) {}

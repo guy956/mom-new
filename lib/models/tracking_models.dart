@@ -143,7 +143,10 @@ class TrackingRecord {
   double get sleepDurationHours {
     final end = sleepEnd;
     if (end == null) return 0;
-    return end.difference(dateTime).inMinutes / 60.0;
+    double hours = end.difference(dateTime).inMinutes / 60.0;
+    // Handle overnight sleep (e.g., 22:00 to 06:00)
+    if (hours < 0) hours += 24;
+    return hours;
   }
 
   // ===== Feeding helpers =====
