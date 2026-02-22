@@ -5,10 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 /// Centralized App Configuration Provider
-/// 
+///
 /// This is the single source of truth for all app configuration.
 /// It listens to Firestore in real-time and broadcasts changes to all listeners.
 /// All widgets should use this provider for dynamic content.
+///
+/// NOTE: Some fields here (feature flags, UI config, text overrides, app config,
+/// announcement) overlap with [AppState], which retains them for backwards
+/// compatibility. This class is the preferred source for dynamic configuration.
+/// [AppState] should be used for user session, theme, and admin state management.
 class AppConfigProvider extends ChangeNotifier {
   static final AppConfigProvider _instance = AppConfigProvider._internal();
   factory AppConfigProvider() => _instance;

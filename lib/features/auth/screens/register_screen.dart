@@ -90,6 +90,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // Show confirmation dialog before registration
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('אישור הרשמה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('את עומדת להירשם עם הפרטים הבאים:', style: TextStyle(fontFamily: 'Heebo')),
+            const SizedBox(height: 12),
+            Text('שם: ${_nameController.text.trim()}', style: const TextStyle(fontFamily: 'Heebo')),
+            Text('אימייל: ${_emailController.text.trim()}', style: const TextStyle(fontFamily: 'Heebo')),
+            Text('טלפון: ${_phoneController.text.trim()}', style: const TextStyle(fontFamily: 'Heebo')),
+            Text('עיר: ${_cityController.text.trim()}', style: const TextStyle(fontFamily: 'Heebo')),
+            const SizedBox(height: 12),
+            const Text(
+              'בלחיצה על "אישור" את מסכימה לתנאי השימוש ולמדיניות הפרטיות.',
+              style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('אישור', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     setState(() => _isLoading = true);
 
     final result = await AuthService.instance.register(
@@ -132,9 +175,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (!mounted) return;
 
-      if (loginResult.isSuccess) {
+      final loginUserData = loginResult.userData;
+      if (loginResult.isSuccess && loginUserData != null) {
         // Update AppState with user data
-        final userModel = AuthService.instance.userModelFromData(loginResult.userData!);
+        final userModel = AuthService.instance.userModelFromData(loginUserData);
         context.read<AppState>().setUser(userModel);
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -194,25 +238,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 30),
-                _buildProgressIndicator(),
-                const SizedBox(height: 30),
-                _buildCurrentStep(),
-                const SizedBox(height: 30),
-                _buildNavigationButtons(),
-                const SizedBox(height: 30),
-                if (_currentStep == 0) _buildLoginLink(),
-              ],
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 30),
+                    _buildProgressIndicator(),
+                    const SizedBox(height: 30),
+                    _buildCurrentStep(),
+                    const SizedBox(height: 30),
+                    _buildNavigationButtons(),
+                    const SizedBox(height: 30),
+                    if (_currentStep == 0) _buildLoginLink(),
+                  ],
+                ),
+              ),
             ),
-          ),
+            if (_isLoading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: AppColors.primary),
+                        SizedBox(height: 16),
+                        Text('נרשמת...', style: TextStyle(fontFamily: 'Heebo', fontSize: 16, color: Colors.white, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -314,7 +378,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _nameController,
           textDirection: TextDirection.rtl,
           decoration: const InputDecoration(hintText: 'שם מלא *', prefixIcon: Icon(Icons.person_outlined)),
-          validator: (v) => (v == null || v.isEmpty) ? TextConfig.errorRequiredField : null,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return TextConfig.errorRequiredField;
+            if (v.trim().length < 2) return 'שם מלא חייב להכיל לפחות 2 תווים';
+            return null;
+          },
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -345,9 +413,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           validator: (v) {
             if (v == null || v.isEmpty) return 'מספר טלפון הוא שדה חובה';
             final cleaned = v.replaceAll(RegExp(r'[^0-9]'), '');
+            if (!cleaned.startsWith('05') && !cleaned.startsWith('5')) {
+              return 'מספר טלפון חייב להתחיל ב-05';
+            }
             final phoneRegex = RegExp(r'^0?(5[0-9])\d{7}$');
             if (!phoneRegex.hasMatch(cleaned)) {
-              return 'מספר טלפון ישראלי לא תקין (05X-XXXXXXX)';
+              return 'מספר טלפון ישראלי חייב להכיל 10 ספרות (05X-XXXXXXX)';
             }
             return null;
           },
@@ -375,7 +446,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onChanged: (_) => setState(() {}),
           validator: (v) {
             if (v == null || v.isEmpty) return TextConfig.errorRequiredField;
-            if (v.length < 8) return TextConfig.errorInvalidPassword;
+            if (v.length < 8) return 'הסיסמה חייבת להכיל לפחות 8 תווים';
+            if (!v.contains(RegExp(r'[a-zA-Z]'))) return 'הסיסמה חייבת לכלול לפחות אות אחת';
+            if (!v.contains(RegExp(r'[0-9]'))) return 'הסיסמה חייבת לכלול לפחות מספר אחד';
             return null;
           },
         ),
@@ -582,38 +655,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool _validateCurrentStep() {
+    // Use the form's built-in validation to show inline error messages
+    // on each TextFormField, then also do a manual check as a fallback.
+    final formValid = _formKey.currentState?.validate() ?? false;
+    if (!formValid) return false;
+
     switch (_currentStep) {
       case 0:
-        if (_nameController.text.isEmpty || _emailController.text.isEmpty || _phoneController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('נא למלא את כל השדות'), backgroundColor: AppColors.error));
-          return false;
-        }
-        if (!_emailController.text.contains('@')) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(TextConfig.errorInvalidEmail), backgroundColor: AppColors.error));
-          return false;
-        }
-        final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-        final phoneRegex = RegExp(r'^0?(5[0-9])\d{7}$');
-        if (!phoneRegex.hasMatch(digits)) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('מספר טלפון ישראלי לא תקין (05X-XXXXXXX)'), backgroundColor: AppColors.error));
+        // The form validator already checks name, email, phone inline.
+        // This is a safety net in case form state is out of sync.
+        if (_nameController.text.trim().isEmpty || _emailController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('נא למלא את כל השדות', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error));
           return false;
         }
         return true;
       case 1:
         if (_passwordController.text.length < 8) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(TextConfig.errorInvalidPassword), backgroundColor: AppColors.error));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(TextConfig.errorInvalidPassword, style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error));
           return false;
         }
         if (!_passwordController.text.contains(RegExp(r'[a-zA-Z]')) || !_passwordController.text.contains(RegExp(r'[0-9]'))) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('הסיסמה חייבת לכלול אות ומספר'), backgroundColor: AppColors.error));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('הסיסמה חייבת לכלול אות ומספר', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error));
           return false;
         }
         if (_passwordController.text != _confirmPasswordController.text) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(TextConfig.errorPasswordMismatch), backgroundColor: AppColors.error));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(TextConfig.errorPasswordMismatch, style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error));
           return false;
         }
-        if (_cityController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('נא להזין עיר מגורים'), backgroundColor: AppColors.error));
+        if (_cityController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('נא להזין עיר מגורים', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error));
           return false;
         }
         return true;

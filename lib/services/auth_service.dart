@@ -79,11 +79,15 @@ class JwtService {
 
     // Validate secrets are set - generate cryptographically random fallback if missing
     if (_accessSecret == null || _accessSecret!.isEmpty || _accessSecret!.length < 32) {
-      debugPrint('[JwtService] Warning: JWT_ACCESS_SECRET missing or too short, using random fallback');
+      debugPrint('[JwtService] WARNING: JWT_ACCESS_SECRET missing or too short. '
+          'Generating random fallback - user sessions will NOT persist across app restarts. '
+          'Set JWT_ACCESS_SECRET in .env for persistent sessions.');
       _accessSecret = _generateRandomSecret();
     }
     if (_refreshSecret == null || _refreshSecret!.isEmpty || _refreshSecret!.length < 32) {
-      debugPrint('[JwtService] Warning: JWT_REFRESH_SECRET missing or too short, using random fallback');
+      debugPrint('[JwtService] WARNING: JWT_REFRESH_SECRET missing or too short. '
+          'Generating random fallback - refresh tokens will be invalidated on restart. '
+          'Set JWT_REFRESH_SECRET in .env for persistent sessions.');
       _refreshSecret = _generateRandomSecret();
     }
 
@@ -351,7 +355,7 @@ class AuthService with RateLimitMixin {
     if (emailsStr != null && emailsStr.isNotEmpty) {
       return emailsStr.split(',').map((e) => e.trim().toLowerCase()).toList();
     }
-    return const ['ola.cos85@gmail.com'];
+    return const [];
   }
 
   /// Check if an email is an admin email
@@ -395,7 +399,7 @@ class AuthService with RateLimitMixin {
     try {
       await _ensureInitialized();
 
-      final emailLower = email.toLowerCase().trim();
+      final emailLower = email.trim().toLowerCase();
 
       // Check rate limit for registration/API calls (100 per minute)
       final rateLimitError = rateLimitApiCall(emailLower);
@@ -404,8 +408,9 @@ class AuthService with RateLimitMixin {
         return AuthResult.failure(rateLimitError);
       }
 
-      // Validate
-      if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      // Validate email format strictly (must have valid TLD of 2+ chars)
+      final emailRegex = RegExp(r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+$');
+      if (emailLower.isEmpty || !emailRegex.hasMatch(emailLower)) {
         return AuthResult.failure('כתובת אימייל לא תקינה');
       }
       if (password.length < 8) {
@@ -515,7 +520,13 @@ class AuthService with RateLimitMixin {
     try {
       await _ensureInitialized();
 
-      final emailLower = email.toLowerCase().trim();
+      final emailLower = email.trim().toLowerCase();
+
+      // Validate email format strictly (must have valid TLD of 2+ chars)
+      final emailRegex = RegExp(r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+$');
+      if (emailLower.isEmpty || !emailRegex.hasMatch(emailLower)) {
+        return AuthResult.failure('כתובת אימייל לא תקינה');
+      }
 
       // Check rate limit for login attempts (5 per minute)
       final rateLimitError = rateLimitLogin(emailLower);

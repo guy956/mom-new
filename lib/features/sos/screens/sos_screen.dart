@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +19,10 @@ class SOSScreen extends StatefulWidget {
 class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   bool _sosActive = false;
+  bool _isSubmitting = false;
+  bool _submissionFailed = false;
+  String? _lastFailedCategory;
+  String? _lastFailedMessage;
   String? _activeAlertId;
   String _selectedCategoryLabel = '';
 
@@ -75,7 +78,87 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: _sosActive ? _buildActiveSOSView() : _buildSOSCategories(),
+      body: _isSubmitting
+          ? _buildSubmittingView()
+          : _sosActive
+              ? _buildActiveSOSView()
+              : _buildSOSCategories(),
+    );
+  }
+
+  Widget _buildSubmittingView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(
+                strokeWidth: 4,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'שולחת את בקשת העזרה...',
+              style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'אנא המתיני, זה ייקח רק רגע',
+              style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRetryBanner() {
+    if (!_submissionFailed) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline, color: AppColors.error, size: 24),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'השליחה האחרונה נכשלה. בדקי את החיבור לאינטרנט ונסי שוב.',
+                  style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _retrySOS,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('נסי שוב', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -132,6 +215,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Retry banner if last submission failed
+          _buildRetryBanner(),
 
           // Categories
           const Text('במה צריכה עזרה?', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
@@ -394,7 +480,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
               children: [
                 Icon(Icons.security, size: 16, color: AppColors.info),
                 const SizedBox(width: 4),
-                Text('הבקשה תשלח לקהילה ולמנהלת', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                Expanded(
+                  child: Text('הבקשה תשלח לקהילה ולמנהלת', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                ),
               ],
             ),
           ],
@@ -422,6 +510,14 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
   Future<void> _activateSOS({required String category, required String message}) async {
     HapticFeedback.heavyImpact();
+
+    if (_isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _submissionFailed = false;
+    });
+
     final appState = Provider.of<AppState>(context, listen: false);
     final fs = Provider.of<FirestoreService>(context, listen: false);
     final user = appState.currentUser;
@@ -447,20 +543,56 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _sosActive = true;
+          _isSubmitting = false;
+          _submissionFailed = false;
           _selectedCategoryLabel = category;
           _activeAlertId = alertId;
+          _lastFailedCategory = null;
+          _lastFailedMessage = null;
         });
-      }
-    } catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('שגיאה בשליחת SOS: $e', style: const TextStyle(fontFamily: 'Heebo')),
-            backgroundColor: AppColors.error,
+          const SnackBar(
+            content: Text('בקשת העזרה נשלחה בהצלחה! הקהילה תקבל התראה.', style: TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } catch (e) {
+      debugPrint('SOS submission error: $e');
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _submissionFailed = true;
+          _lastFailedCategory = category;
+          _lastFailedMessage = message;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'לא הצלחנו לשלוח את בקשת העזרה. בדקי את החיבור לאינטרנט ונסי שוב.',
+              style: TextStyle(fontFamily: 'Heebo'),
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'נסי שוב',
+              textColor: Colors.white,
+              onPressed: () => _retrySOS(),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _retrySOS() {
+    if (_lastFailedCategory != null) {
+      _activateSOS(
+        category: _lastFailedCategory!,
+        message: _lastFailedMessage ?? '',
+      );
     }
   }
 
@@ -486,8 +618,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('שגיאה בביטול SOS: $e - הבקשה עדיין פעילה', style: const TextStyle(fontFamily: 'Heebo')),
+            const SnackBar(
+              content: Text('לא הצלחנו לבטל את הבקשה. נסי שוב מאוחר יותר.', style: TextStyle(fontFamily: 'Heebo')),
               backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating,
             ),

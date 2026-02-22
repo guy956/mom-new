@@ -1,3 +1,5 @@
+import 'dart:math' show pi, sin;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
@@ -183,20 +185,32 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity, height: 56,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _handleLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          shadowColor: AppColors.primary.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    return AnimatedBuilder(
+      animation: _shakeController,
+      builder: (context, child) {
+        final sineValue = _shakeController.isAnimating
+            ? sin(_shakeController.value * pi * 4) * 8
+            : 0.0;
+        return Transform.translate(
+          offset: Offset(sineValue, 0),
+          child: child,
+        );
+      },
+      child: SizedBox(
+        width: double.infinity, height: 56,
+        child: ElevatedButton(
+          onPressed: _isLoading ? null : _handleLogin,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 2,
+            shadowColor: AppColors.primary.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: _isLoading
+              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              : Text(TextConfig.login, style: const TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
         ),
-        child: _isLoading
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : Text(TextConfig.login, style: const TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -218,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   /// REAL login handler - with proper error handling and navigation
   void _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     HapticFeedback.mediumImpact();
     setState(() => _isLoading = true);
 
@@ -246,7 +260,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
 
       // Success!
-      final userData = result.userData!;
+      final userData = result.userData;
+      if (userData == null) {
+        AppSnackbar.error(context, 'שגיאה בקבלת נתוני משתמש');
+        return;
+      }
       final isAdmin = userData['isAdmin'] == true;
 
       if (!mounted) return;
@@ -278,66 +296,85 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   void _showForgotPasswordSheet() {
     final emailCtrl = TextEditingController();
+    final forgotFormKey = GlobalKey<FormState>();
     showModalBottomSheet(
       context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 24),
-              const Text('\u05e9\u05db\u05d7\u05ea \u05e1\u05d9\u05e1\u05de\u05d4?', style: TextStyle(fontFamily: 'Heebo', fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('\u05d4\u05db\u05e0\u05d9\u05e1\u05d9 \u05d0\u05ea \u05d4\u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e9\u05dc\u05da \u05d5\u05e0\u05e9\u05dc\u05d7 \u05dc\u05da \u05e7\u05d9\u05e9\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e4\u05d5\u05e1', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(hintText: '\u05d4\u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e9\u05dc\u05da', prefixIcon: const Icon(Icons.email_outlined), filled: true, fillColor: AppColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(width: double.infinity, height: 56, child: ElevatedButton(
-                onPressed: () async {
-                  final email = emailCtrl.text.trim();
-                  Navigator.pop(ctx);
-
-                  // Show loading indicator
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('שולח בקשה...'),
-                      duration: Duration(seconds: 1),
+      builder: (ctx) {
+        bool isSending = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: forgotFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 24),
+                    const Text('\u05e9\u05db\u05d7\u05ea \u05e1\u05d9\u05e1\u05de\u05d4?', style: TextStyle(fontFamily: 'Heebo', fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('\u05d4\u05db\u05e0\u05d9\u05e1\u05d9 \u05d0\u05ea \u05d4\u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e9\u05dc\u05da \u05d5\u05e0\u05e9\u05dc\u05d7 \u05dc\u05da \u05e7\u05d9\u05e9\u05d5\u05e8 \u05dc\u05d0\u05d9\u05e4\u05d5\u05e1', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)),
+                    const SizedBox(height: 24),
+                    TextFormField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(hintText: '\u05d4\u05d0\u05d9\u05de\u05d9\u05d9\u05dc \u05e9\u05dc\u05da', prefixIcon: const Icon(Icons.email_outlined), filled: true, fillColor: AppColors.surfaceVariant, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'נא להזין כתובת אימייל';
+                        if (!v.contains('@') || !v.contains('.')) return 'כתובת אימייל לא תקינה';
+                        return null;
+                      },
                     ),
-                  );
+                    const SizedBox(height: 24),
+                    SizedBox(width: double.infinity, height: 56, child: ElevatedButton(
+                      onPressed: isSending ? null : () async {
+                        if (!(forgotFormKey.currentState?.validate() ?? false)) return;
 
-                  // Call rate-limited password reset
-                  final result = await AuthService.instance.requestPasswordReset(email);
+                        final email = emailCtrl.text.trim();
+                        setSheetState(() => isSending = true);
 
-                  if (!context.mounted) return;
+                        // Call rate-limited password reset
+                        final result = await AuthService.instance.requestPasswordReset(email);
 
-                  if (result.isSuccess) {
-                    AppSnackbar.success(
-                      context,
-                      result.userData?['message'] as String? ?? 'קישור לאיפוס סיסמה נשלח',
-                    );
-                  } else {
-                    AppSnackbar.error(
-                      context,
-                      result.errorMessage ?? 'שגיאה בשליחת הבקשה',
-                    );
-                  }
-                },
-                child: const Text('\u05e9\u05dc\u05d9\u05d7\u05ea \u05e7\u05d9\u05e9\u05d5\u05e8', style: TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.bold)),
-              )),
-              const SizedBox(height: 16),
-            ],
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+
+                        if (!context.mounted) return;
+
+                        if (result.isSuccess) {
+                          AppSnackbar.success(
+                            context,
+                            result.userData?['message'] as String? ?? 'קישור לאיפוס סיסמה נשלח',
+                          );
+                        } else {
+                          AppSnackbar.error(
+                            context,
+                            result.errorMessage ?? 'שגיאה בשליחת הבקשה',
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: isSending
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('\u05e9\u05dc\u05d9\u05d7\u05ea \u05e7\u05d9\u05e9\u05d5\u05e8', style: TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.bold)),
+                    )),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

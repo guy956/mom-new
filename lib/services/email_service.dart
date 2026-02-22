@@ -3,18 +3,21 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Service for sending emails via SendGrid API
+/// Service for sending emails via Mailjet API
 /// Sends admin notifications when users create content requiring approval
 class EmailService {
   static final EmailService _instance = EmailService._internal();
   factory EmailService() => _instance;
   EmailService._internal();
 
-  /// SendGrid API endpoint
-  static const String _sendGridApiUrl = 'https://api.sendgrid.com/v3/mail/send';
+  /// Mailjet API endpoint
+  static const String _mailjetApiUrl = 'https://api.mailjet.com/v3.1/send';
 
-  /// Get SendGrid API key from environment
-  String? get _sendGridApiKey => dotenv.env['SENDGRID_API_KEY'];
+  /// Get Mailjet API key from environment
+  String? get _mailjetApiKey => dotenv.env['MAILJET_API_KEY'];
+
+  /// Get Mailjet Secret key from environment
+  String? get _mailjetSecretKey => dotenv.env['MAILJET_SECRET_KEY'];
 
   /// Admin email address to receive notifications
   /// Falls back to hardcoded admin email if env variable is not set
@@ -36,9 +39,10 @@ class EmailService {
     String? dashboardLink,
   }) async {
     try {
-      // Check if SendGrid API key is configured
-      if (_sendGridApiKey == null || _sendGridApiKey!.isEmpty) {
-        debugPrint('[EmailService] SendGrid API key not configured - skipping email');
+      // Check if Mailjet API keys are configured
+      if (_mailjetApiKey == null || _mailjetApiKey!.isEmpty ||
+          _mailjetSecretKey == null || _mailjetSecretKey!.isEmpty) {
+        debugPrint('[EmailService] Mailjet API keys not configured - skipping email');
         return false;
       }
 
@@ -60,37 +64,38 @@ class EmailService {
       // Build email subject
       final subject = _buildSubject(type, title);
 
-      // Send email via SendGrid
+      // Build Mailjet Basic auth header
+      final credentials = base64Encode(utf8.encode('$_mailjetApiKey:$_mailjetSecretKey'));
+
+      // Send email via Mailjet
       final response = await http.post(
-        Uri.parse(_sendGridApiUrl),
+        Uri.parse(_mailjetApiUrl),
         headers: {
-          'Authorization': 'Bearer $_sendGridApiKey',
+          'Authorization': 'Basic $credentials',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'personalizations': [
+          'Messages': [
             {
-              'to': [
-                {'email': _adminEmail}
+              'From': {
+                'Email': 'noreply@momit.co.il',
+                'Name': 'MOMIT System',
+              },
+              'To': [
+                {
+                  'Email': _adminEmail,
+                  'Name': 'Admin',
+                }
               ],
-              'subject': subject,
-            }
-          ],
-          'from': {
-            'email': 'noreply@momit.co.il',
-            'name': 'MOMIT System'
-          },
-          'content': [
-            {
-              'type': 'text/html',
-              'value': htmlContent,
+              'Subject': subject,
+              'HTMLPart': htmlContent,
             }
           ],
         }),
       );
 
-      if (response.statusCode == 202) {
-        debugPrint('[EmailService] Admin notification email sent successfully');
+      if (response.statusCode == 200) {
+        debugPrint('[EmailService] Admin notification email sent successfully via Mailjet');
         return true;
       } else {
         debugPrint('[EmailService] Failed to send email: ${response.statusCode}');

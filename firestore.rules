@@ -29,9 +29,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Admin config and subcollections
+    // Admin config and subcollections - contains API keys and sensitive config
     match /admin_config/{doc} {
-      allow read: if true;
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
     
@@ -62,7 +62,10 @@ service cloud.firestore {
     // Users - authenticated read, owner or admin write
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        request.resource.data.keys().hasAll(['email', 'fullName']) &&
+        request.resource.data.email is string &&
+        request.resource.data.fullName is string;
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -142,7 +145,8 @@ service cloud.firestore {
     // Error logs - admin only
     match /error_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if true; // Allow error reporting from client
+      allow create: if true && // Allow error reporting from client
+        request.resource.size() < 10240; // Limit document size to 10KB
     }
     
     // Analytics - admin only

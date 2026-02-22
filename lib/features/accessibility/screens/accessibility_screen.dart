@@ -19,6 +19,7 @@ class AccessibilityScreen extends StatelessWidget {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_rounded),
+            tooltip: 'חזרה',
             onPressed: () => Navigator.pop(context),
           ),
           title: const Text(
@@ -26,19 +27,23 @@ class AccessibilityScreen extends StatelessWidget {
             style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700),
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                a11y.resetAll();
-                HapticFeedback.mediumImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('הגדרות הנגישות אופסו', style: TextStyle(fontFamily: 'Heebo')),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              child: const Text('איפוס', style: TextStyle(fontFamily: 'Heebo', color: AppColors.error)),
+            Semantics(
+              button: true,
+              label: 'איפוס כל הגדרות הנגישות',
+              child: TextButton(
+                onPressed: () {
+                  a11y.resetAll();
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('הגדרות הנגישות אופסו', style: TextStyle(fontFamily: 'Heebo')),
+                      backgroundColor: AppColors.success,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                child: const Text('איפוס', style: TextStyle(fontFamily: 'Heebo', color: AppColors.error)),
+              ),
             ),
           ],
         ),
@@ -54,44 +59,47 @@ class AccessibilityScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+              child: Semantics(
+                label: 'MOMIT מחויבת לנגישות. התאימי את האפליקציה לצרכים שלך.',
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.accessibility_new_rounded, color: AppColors.primary, size: 28),
                     ),
-                    child: const Icon(Icons.accessibility_new_rounded, color: AppColors.primary, size: 28),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'MOMIT מחויבת לנגישות',
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'MOMIT מחויבת לנגישות',
+                            style: TextStyle(
+                              fontFamily: 'Heebo',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'התאימי את האפליקציה לצרכים שלך. כל ההגדרות נשמרות אוטומטית.',
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                            height: 1.4,
+                          const SizedBox(height: 4),
+                          Text(
+                            'התאימי את האפליקציה לצרכים שלך. כל ההגדרות נשמרות אוטומטית.',
+                            style: TextStyle(
+                              fontFamily: 'Heebo',
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -123,22 +131,27 @@ class AccessibilityScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Text('א', style: TextStyle(fontFamily: 'Heebo', fontSize: 12)),
-                          Expanded(
-                            child: Slider(
-                              value: a11y.fontScale,
-                              min: 0.8,
-                              max: 2.0,
-                              divisions: 12,
-                              activeColor: AppColors.primary,
-                              inactiveColor: AppColors.border,
-                              onChanged: (v) => a11y.setFontScale(v),
+                      Semantics(
+                        label: 'מחוון גודל טקסט',
+                        child: Row(
+                          children: [
+                            const Text('א', style: TextStyle(fontFamily: 'Heebo', fontSize: 12)),
+                            Expanded(
+                              child: Slider(
+                                value: a11y.fontScale,
+                                min: 0.8,
+                                max: 2.0,
+                                divisions: 12,
+                                label: '${(a11y.fontScale * 100).toInt()}%',
+                                activeColor: AppColors.primary,
+                                inactiveColor: AppColors.border,
+                                semanticFormatterCallback: (v) => 'גודל טקסט ${(v * 100).toInt()} אחוז',
+                                onChanged: (v) => a11y.setFontScale(v),
+                              ),
                             ),
-                          ),
-                          const Text('א', style: TextStyle(fontFamily: 'Heebo', fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
+                            const Text('א', style: TextStyle(fontFamily: 'Heebo', fontSize: 24, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       // Preview
@@ -341,57 +354,66 @@ class AccessibilityScreen extends StatelessWidget {
   }
 
   Widget _buildToggleTile(String title, String subtitle, IconData icon, bool value, Function(bool) onChanged) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: value ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(10),
+    return Semantics(
+      toggled: value,
+      label: '$title: $subtitle',
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: value ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: value ? AppColors.primary : AppColors.textSecondary, size: 22),
         ),
-        child: Icon(icon, color: value ? AppColors.primary : AppColors.textSecondary, size: 22),
+        title: Text(title, style: const TextStyle(fontFamily: 'Heebo', fontSize: 15, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary, height: 1.3)),
+        trailing: Switch(
+          value: value,
+          onChanged: (v) {
+            HapticFeedback.lightImpact();
+            onChanged(v);
+          },
+          trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+              ? AppColors.primary.withValues(alpha: 0.3)
+              : AppColors.border),
+          thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.textHint),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
-      title: Text(title, style: const TextStyle(fontFamily: 'Heebo', fontSize: 15, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary, height: 1.3)),
-      trailing: Switch(
-        value: value,
-        onChanged: (v) {
-          HapticFeedback.lightImpact();
-          onChanged(v);
-        },
-        trackColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected)
-            ? AppColors.primary.withValues(alpha: 0.3)
-            : AppColors.border),
-        thumbColor: WidgetStateProperty.resolveWith((states) =>
-          states.contains(WidgetState.selected)
-            ? AppColors.primary
-            : AppColors.textHint),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 
   Widget _buildColorBlindChip(String label, String mode, AccessibilityService a11y) {
     final isSelected = a11y.colorBlindMode == mode;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        a11y.setColorBlindMode(mode);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Heebo',
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : AppColors.textPrimary,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'מצב עיוורון צבעים: $label',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          a11y.setColorBlindMode(mode);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Heebo',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+            ),
           ),
         ),
       ),

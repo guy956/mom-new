@@ -19,15 +19,19 @@ class LegalScreen extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: AppColors.surface,
           elevation: 0,
-          leading: IconButton(icon: const Icon(Icons.arrow_back_ios_rounded), onPressed: () => Navigator.pop(context)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_rounded),
+            tooltip: 'חזרה',
+            onPressed: () => Navigator.pop(context),
+          ),
           title: const Text('מסמכים משפטיים', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700)),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
             indicatorColor: AppColors.primary,
-            labelStyle: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 13),
-            tabs: [
+            labelStyle: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 13),
+            tabs: const [
               Tab(text: 'מדיניות פרטיות'),
               Tab(text: 'תנאי שימוש'),
               Tab(text: 'כתב ויתור'),
@@ -471,9 +475,9 @@ Widget _buildParagraph(String title, String content) {
       children: [
         Text(title, style: const TextStyle(fontFamily: 'Heebo', fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         const SizedBox(height: 8),
-        RichText(
+        SelectableText.rich(
+          _buildLinkifiedText(content),
           textAlign: TextAlign.right,
-          text: _buildLinkifiedText(content),
         ),
       ],
     ),

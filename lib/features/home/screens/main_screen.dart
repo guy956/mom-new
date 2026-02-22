@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,6 +36,7 @@ import 'package:mom_connect/features/accessibility/screens/accessibility_screen.
 import 'package:mom_connect/features/legal/screens/legal_screen.dart';
 import 'package:mom_connect/features/notifications/screens/notifications_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mom_connect/core/utils/platform_image_helper.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -1768,7 +1768,7 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
             child: _selectedImagePath != null
               ? (kIsWeb
                   ? Image.network(_selectedImagePath!, fit: BoxFit.cover)
-                  : Image.file(File(_selectedImagePath!), fit: BoxFit.cover))
+                  : buildLocalFileImage(_selectedImagePath!, fit: BoxFit.cover))
               : const Center(child: Icon(Icons.image_rounded, size: 50, color: AppColors.textHint)),
           ),
         ),

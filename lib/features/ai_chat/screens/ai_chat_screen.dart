@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 
 /// AI Chat - MomBot - מופעל על ידי Google Gemini
@@ -89,18 +90,50 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   Future<void> _loadApiKey() async {
+    // 1. Primary source: .env file
+    final envKey = dotenv.env['GEMINI_API_KEY'];
+    if (envKey != null && envKey.isNotEmpty) {
+      debugPrint('[MomBot] API key loaded from .env');
+      setState(() {
+        _geminiApiKey = envKey;
+      });
+      return;
+    }
+
+    // 2. Fallback: Firestore admin_config
     try {
       final doc = await FirebaseFirestore.instance
           .collection('admin_config')
           .doc('api_keys')
           .get();
       if (doc.exists) {
-        setState(() {
-          _geminiApiKey = doc.data()?['geminiApiKey']?.toString();
-        });
+        final firestoreKey = doc.data()?['geminiApiKey']?.toString();
+        if (firestoreKey != null && firestoreKey.isNotEmpty) {
+          debugPrint('[MomBot] API key loaded from Firestore');
+          setState(() {
+            _geminiApiKey = firestoreKey;
+          });
+          return;
+        }
       }
     } catch (e) {
-      debugPrint('[MomBot] Error loading API key: $e');
+      debugPrint('[MomBot] Error loading API key from Firestore: $e');
+    }
+
+    // 3. No API key found from any source
+    debugPrint('[MomBot] No API key available from .env or Firestore');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'שירות הצ\'אט אינו זמין כרגע. אנא נסי שוב מאוחר יותר.',
+            textDirection: TextDirection.rtl,
+            style: TextStyle(fontFamily: 'Heebo'),
+          ),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -810,7 +843,17 @@ class _AIChatScreenState extends State<AIChatScreen>
       }
       return 'מצטערת, לא הצלחתי לייצר תשובה. נסי לנסח את השאלה אחרת.';
     } else {
-      throw Exception('Gemini API error: ${response.statusCode}');
+      debugPrint('[MomBot] Gemini API error: ${response.statusCode} - ${response.body}');
+      switch (response.statusCode) {
+        case 401:
+          return 'מפתח ה-API אינו תקין. אנא פני למנהלת המערכת.';
+        case 429:
+          return 'יותר מדי בקשות בו-זמנית. אנא המתיני מספר שניות ונסי שוב.';
+        case 500:
+          return 'שגיאה בשרת של Google AI. אנא נסי שוב בעוד מספר דקות.';
+        default:
+          return 'מצטערת, נתקלתי בבעיה טכנית (שגיאה ${response.statusCode}). נסי שוב מאוחר יותר.';
+      }
     }
   }
 

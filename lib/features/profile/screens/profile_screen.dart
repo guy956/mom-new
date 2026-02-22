@@ -1012,141 +1012,202 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint)),
-                    ),
-                    const Text('עריכת פרופיל', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
-                    TextButton(
-                      onPressed: () async {
-                        final appState = context.read<AppState>();
-                        final userId = appState.currentUser?.id;
-                        if (userId == null) {
-                          Navigator.pop(ctx);
-                          return;
-                        }
-
-                        final newName = nameCtrl.text.trim();
-                        final newBio = bioCtrl.text.trim();
-                        final newCity = cityCtrl.text.trim();
-                        final newPhone = phoneCtrl.text.trim();
-
-                        try {
-                          // Save to Firestore
-                          final firestoreService = context.read<FirestoreService>();
-                          await firestoreService.updateUser(userId, {
-                            'fullName': newName,
-                            'bio': newBio.isEmpty ? null : newBio,
-                            'city': newCity.isEmpty ? null : newCity,
-                            'phone': newPhone.isEmpty ? null : newPhone,
-                          });
-
-                          // Update local AppState
-                          appState.updateUserProfile(
-                            fullName: newName,
-                            bio: newBio.isEmpty ? null : newBio,
-                            city: newCity.isEmpty ? null : newCity,
-                            phone: newPhone.isEmpty ? null : newPhone,
-                          );
-
-                          // Update local _user for immediate UI refresh
-                          setState(() {
-                            _user = _user.copyWith(
-                              fullName: newName,
-                              bio: newBio.isEmpty ? null : newBio,
-                              city: newCity.isEmpty ? null : newCity,
-                              phone: newPhone.isEmpty ? null : newPhone,
-                            );
-                          });
-
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('הפרופיל עודכן בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
-                              backgroundColor: AppColors.success,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        } catch (e) {
-                          Navigator.pop(ctx);
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('שגיאה בשמירת הפרופיל: $e', style: const TextStyle(fontFamily: 'Heebo')),
-                              backgroundColor: AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('שמור', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.primary)),
-                    ),
-                  ],
-                ),
+      builder: (ctx) {
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const Divider(height: 1),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: GestureDetector(
-                          onTap: _showProfileImageOptions,
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 50,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                backgroundImage: _user.profileImage != null ? NetworkImage(_user.profileImage!) : null,
-                                child: _user.profileImage == null ? const Icon(Icons.person, size: 50, color: AppColors.primary) : null,
+              child: Column(
+                children: [
+                  Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                          child: Text('ביטול', style: TextStyle(fontFamily: 'Heebo', color: isSaving ? AppColors.textHint.withValues(alpha: 0.4) : AppColors.textHint)),
+                        ),
+                        const Text('עריכת פרופיל', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
+                        isSaving
+                            ? const SizedBox(
+                                width: 60,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : TextButton(
+                                onPressed: () async {
+                                  final appState = context.read<AppState>();
+                                  final userId = appState.currentUser?.id;
+                                  if (userId == null) {
+                                    Navigator.pop(ctx);
+                                    return;
+                                  }
+
+                                  final newName = nameCtrl.text.trim();
+                                  final newBio = bioCtrl.text.trim();
+                                  final newCity = cityCtrl.text.trim();
+                                  final newPhone = phoneCtrl.text.trim();
+
+                                  setSheetState(() => isSaving = true);
+
+                                  try {
+                                    // Save to Firestore
+                                    final firestoreService = context.read<FirestoreService>();
+                                    await firestoreService.updateUser(userId, {
+                                      'fullName': newName,
+                                      'bio': newBio.isEmpty ? null : newBio,
+                                      'city': newCity.isEmpty ? null : newCity,
+                                      'phone': newPhone.isEmpty ? null : newPhone,
+                                    });
+
+                                    // Update local AppState
+                                    appState.updateUserProfile(
+                                      fullName: newName,
+                                      bio: newBio.isEmpty ? null : newBio,
+                                      city: newCity.isEmpty ? null : newCity,
+                                      phone: newPhone.isEmpty ? null : newPhone,
+                                    );
+
+                                    // Update local _user for immediate UI refresh
+                                    setState(() {
+                                      _user = _user.copyWith(
+                                        fullName: newName,
+                                        bio: newBio.isEmpty ? null : newBio,
+                                        city: newCity.isEmpty ? null : newCity,
+                                        phone: newPhone.isEmpty ? null : newPhone,
+                                      );
+                                    });
+
+                                    Navigator.pop(ctx);
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                                            const SizedBox(width: 10),
+                                            const Text('הפרופיל עודכן בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
+                                          ],
+                                        ),
+                                        backgroundColor: AppColors.success,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    setSheetState(() => isSaving = false);
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                                            const SizedBox(width: 10),
+                                            Expanded(child: Text('שגיאה בשמירת הפרופיל: $e', style: const TextStyle(fontFamily: 'Heebo'))),
+                                          ],
+                                        ),
+                                        backgroundColor: AppColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text('שמור', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.primary)),
                               ),
-                              Positioned(
-                                bottom: 0, right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Loading overlay indicator
+                  if (isSaving)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      color: AppColors.primary.withValues(alpha: 0.04),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          ),
+                          SizedBox(width: 10),
+                          Text('שומר שינויים...', style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: AbsorbPointer(
+                      absorbing: isSaving,
+                      child: Opacity(
+                        opacity: isSaving ? 0.5 : 1.0,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: GestureDetector(
+                                  onTap: _showProfileImageOptions,
+                                  child: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 50,
+                                        backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                        backgroundImage: _user.profileImage != null ? NetworkImage(_user.profileImage!) : null,
+                                        child: _user.profileImage == null ? const Icon(Icons.person, size: 50, color: AppColors.primary) : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0, right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                              const SizedBox(height: 24),
+                              _buildEditField('שם מלא', nameCtrl, Icons.person_outline),
+                              const SizedBox(height: 16),
+                              _buildEditField('ביו', bioCtrl, Icons.info_outline, maxLines: 3),
+                              const SizedBox(height: 16),
+                              _buildEditField('עיר', cityCtrl, Icons.location_on_outlined),
+                              const SizedBox(height: 16),
+                              _buildEditField('טלפון', phoneCtrl, Icons.phone_outlined),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _buildEditField('שם מלא', nameCtrl, Icons.person_outline),
-                      const SizedBox(height: 16),
-                      _buildEditField('ביו', bioCtrl, Icons.info_outline, maxLines: 3),
-                      const SizedBox(height: 16),
-                      _buildEditField('עיר', cityCtrl, Icons.location_on_outlined),
-                      const SizedBox(height: 16),
-                      _buildEditField('טלפון', phoneCtrl, Icons.phone_outlined),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

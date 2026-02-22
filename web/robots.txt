@@ -1,33 +1,3 @@
-# robots.txt for MOMIT
-# https://momit.pages.dev
-
 User-agent: *
 Allow: /
-
-# Sitemap location
 Sitemap: https://momit.pages.dev/sitemap.xml
-
-# Crawl rate (optional - adjust as needed)
-Crawl-delay: 1
-
-# Disallow admin or private areas if any
-# Disallow: /admin/
-# Disallow: /api/
-# Disallow: /internal/
-
-# Allow specific bots full access
-User-agent: Googlebot
-Allow: /
-
-User-agent: Googlebot-Image
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-# Block known bad bots
-User-agent: AhrefsBot
-Crawl-delay: 10
-
-User-agent: SemrushBot
-Crawl-delay: 10

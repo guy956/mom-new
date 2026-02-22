@@ -10,6 +10,14 @@ import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/core/constants/color_config.dart';
 
 /// Global app state with full user data persistence and Firestore real-time sync.
+///
+/// NOTE: Feature flags, UI config, text overrides, app config, and announcement
+/// management in this class overlaps with [AppConfigProvider]. This class retains
+/// these fields for backwards compatibility. [AppConfigProvider] is the preferred
+/// source for dynamic configuration (it uses separate cache keys prefixed with
+/// 'cache_' in SharedPreferences). Widgets consuming dynamic config should prefer
+/// [AppConfigProvider]; this class should be used for user session, theme, and
+/// admin state management.
 class AppState extends ChangeNotifier {
   static const String _themeKey = 'momit_theme_mode';
   static const String _userDataKey = 'momit_user_data';

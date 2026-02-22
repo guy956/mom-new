@@ -10,7 +10,6 @@ import 'package:mom_connect/features/auth/screens/intro_splash_screen.dart';
 import 'package:mom_connect/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:mom_connect/services/auth_service.dart';
 import 'package:mom_connect/services/app_state.dart';
-import 'package:mom_connect/services/dynamic_config_service.dart';
 import 'package:provider/provider.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -182,42 +181,34 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       );
     }
 
-    // Listen to Firestore for real-time welcome content updates
-    return StreamBuilder<AppConfig>(
-      stream: DynamicConfigService.instance.appConfigStream,
-      builder: (context, configSnapshot) {
-        final config = configSnapshot.data ?? AppConfig.defaultConfig();
-
-        return Scaffold(
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  ColorConfig.primarySoft,
-                  ColorConfig.background,
-                  ColorConfig.surface,
-                ],
-              ),
-            ),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: _buildHeroSection(),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _buildActionSection(),
-                  ),
-                ],
-              ),
-            ),
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              ColorConfig.primarySoft,
+              ColorConfig.background,
+              ColorConfig.surface,
+            ],
           ),
-        );
-      },
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildHeroSection(),
+              ),
+              Expanded(
+                flex: 2,
+                child: _buildActionSection(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -336,126 +327,138 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 const SizedBox(height: 32),
 
                 // Join Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      HapticFeedback.mediumImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          TextConfig.joinFree,
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                Semantics(
+                  button: true,
+                  label: 'הרשמה חינם לאפליקציה',
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        HapticFeedback.mediumImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
                           ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        SizedBox(width: 8),
-                        Icon(Icons.arrow_forward_rounded),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            TextConfig.joinFree,
+                            style: TextStyle(
+                              fontFamily: 'Heebo',
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Google Sign In Button - More prominent
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _handleGoogleSignIn,
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      backgroundColor: Colors.white,
-                      side: const BorderSide(color: AppColors.border, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                Semantics(
+                  button: true,
+                  label: 'הרשמה באמצעות חשבון Google',
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _handleGoogleSignIn,
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: AppColors.textPrimary,
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: AppColors.border, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 2,
+                        shadowColor: Colors.black.withValues(alpha: 0.1),
                       ),
-                      elevation: 2,
-                      shadowColor: Colors.black.withValues(alpha: 0.1),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Google colored G logo
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                          ),
-                          child: Center(
-                            child: ShaderMask(
-                              shaderCallback: (bounds) => const LinearGradient(
-                                colors: [Color(0xFF4285F4), Color(0xFFDB4437), Color(0xFFF4B400), Color(0xFF0F9D58)],
-                                stops: [0.0, 0.33, 0.66, 1.0],
-                              ).createShader(bounds),
-                              child: const Text('G', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Google colored G logo
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                            ),
+                            child: Center(
+                              child: ShaderMask(
+                                shaderCallback: (bounds) => const LinearGradient(
+                                  colors: [Color(0xFF4285F4), Color(0xFFDB4437), Color(0xFFF4B400), Color(0xFF0F9D58)],
+                                  stops: [0.0, 0.33, 0.66, 1.0],
+                                ).createShader(bounds),
+                                child: const Text('G', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          '\u05d4\u05e8\u05e9\u05de\u05d4 \u05d1\u05d0\u05de\u05e6\u05e2\u05d5\u05ea Google',
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                          const SizedBox(width: 12),
+                          const Text(
+                            '\u05d4\u05e8\u05e9\u05de\u05d4 \u05d1\u05d0\u05de\u05e6\u05e2\u05d5\u05ea Google',
+                            style: TextStyle(
+                              fontFamily: 'Heebo',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
+                Semantics(
+                  button: true,
+                  label: 'כניסה לחשבון קיים',
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary, width: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
-                    child: const Text(
-                      '\u05d9\u05e9 \u05dc\u05d9 \u05db\u05d1\u05e8 \u05d7\u05e9\u05d1\u05d5\u05df',
-                      style: TextStyle(
-                        fontFamily: 'Heebo',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      child: const Text(
+                        '\u05d9\u05e9 \u05dc\u05d9 \u05db\u05d1\u05e8 \u05d7\u05e9\u05d1\u05d5\u05df',
+                        style: TextStyle(
+                          fontFamily: 'Heebo',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -490,34 +493,37 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Widget _buildFeatureChipIcon(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Heebo',
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
+    return Semantics(
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Heebo',
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

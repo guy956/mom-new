@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:mom_connect/core/widgets/loading_widgets.dart';
+import 'package:mom_connect/core/widgets/empty_state_widgets.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/app_state.dart';
@@ -106,38 +108,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 stream: fs.marketplaceStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                    return const ShimmerGrid(
+                      crossAxisCount: 2,
+                      itemCount: 6,
+                      childAspectRatio: 0.78,
                     );
                   }
                   if (snapshot.hasError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(Icons.error_outline_rounded,
-                                size: 48,
-                                color: AppColors.error.withValues(alpha: 0.5)),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('שגיאה בטעינת הפריטים',
-                              style: TextStyle(
-                                  fontFamily: 'Heebo',
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8),
-                          Text('נסי שוב מאוחר יותר',
-                              style: TextStyle(
-                                  fontFamily: 'Heebo',
-                                  color: AppColors.textSecondary)),
-                        ],
-                      ),
+                    return EnhancedEmptyState.error(
+                      message: 'שגיאה בטעינת הפריטים. בדקי את החיבור ונסי שוב.',
+                      onRetry: () => setState(() {}),
                     );
                   }
 
@@ -326,33 +306,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   Widget _buildProductGrid(List<Map<String, dynamic>> products) {
     if (products.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.search_off_rounded,
-                  size: 48,
-                  color: AppColors.primary.withValues(alpha: 0.5)),
-            ),
-            const SizedBox(height: 16),
-            const Text('לא נמצאו פריטים',
-                style: TextStyle(
-                    fontFamily: 'Heebo',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text('נסי לשנות את הסינון',
-                style: TextStyle(
-                    fontFamily: 'Heebo', color: AppColors.textSecondary)),
-          ],
-        ),
-      );
+      return _searchQuery.isNotEmpty
+          ? EnhancedEmptyState.search(
+              query: _searchQuery,
+              onClearSearch: () {
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+              },
+            )
+          : const EnhancedEmptyState(
+              icon: Icons.volunteer_activism_rounded,
+              title: 'אין פריטים למסירה כרגע',
+              subtitle: 'היי הראשונה לפרסם פריט למסירה לקהילה!',
+              iconColor: AppColors.primary,
+            );
     }
 
     return GridView.builder(
