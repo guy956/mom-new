@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -365,6 +366,39 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  Widget _buildItemImage(Map<String, dynamic> item, String category) {
+    final images = item['images'];
+    if (images is List && images.isNotEmpty) {
+      return Image.network(
+        images[0].toString(),
+        fit: BoxFit.cover,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: AppColors.surfaceVariant,
+            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        },
+        errorBuilder: (_, __, ___) => _buildImagePlaceholder(category),
+      );
+    }
+    return _buildImagePlaceholder(category);
+  }
+
+  Widget _buildImagePlaceholder(String category) {
+    return Container(
+      color: AppColors.surfaceVariant,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.volunteer_activism_rounded, size: 36, color: AppColors.primary.withValues(alpha: 0.4)),
+          const SizedBox(height: 4),
+          Text(category.isNotEmpty ? category : 'פריט', style: TextStyle(fontFamily: 'Heebo', fontSize: 10, color: AppColors.textHint)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductCard(Map<String, dynamic> item) {
     final id = item['id'] ?? '';
     final title = (item['title'] ?? '').toString();
@@ -400,24 +434,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         const BorderRadius.vertical(top: Radius.circular(20)),
                     child: AspectRatio(
                       aspectRatio: 1.1,
-                      child: Container(
-                        color: AppColors.surfaceVariant,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.volunteer_activism_rounded,
-                                size: 36,
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.4)),
-                            const SizedBox(height: 4),
-                            Text(category.isNotEmpty ? category : 'פריט',
-                                style: TextStyle(
-                                    fontFamily: 'Heebo',
-                                    fontSize: 10,
-                                    color: AppColors.textHint)),
-                          ],
-                        ),
-                      ),
+                      child: _buildItemImage(item, category),
                     ),
                   ),
                   // Price / donation badge
@@ -797,6 +814,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                   onPressed: () {
                                     setState(() =>
                                         _savedProductIds.remove(itemId));
+                                    // Persist unsave to Firestore
+                                    final appState = Provider.of<AppState>(context, listen: false);
+                                    final userId = appState.currentUser?.id;
+                                    if (userId != null) {
+                                      final fs = Provider.of<FirestoreService>(context, listen: false);
+                                      fs.unsaveItem(userId, itemId);
+                                    }
                                     Navigator.pop(context);
                                     _showSavedProducts();
                                   },
@@ -866,24 +890,7 @@ class _ProductDetailsSheet extends StatelessWidget {
                   // Header image area
                   AspectRatio(
                     aspectRatio: 1.3,
-                    child: Container(
-                      color: AppColors.surfaceVariant,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.volunteer_activism,
-                                size: 64, color: AppColors.textHint),
-                            const SizedBox(height: 8),
-                            Text(category.isNotEmpty ? category : 'פריט',
-                                style: TextStyle(
-                                    fontFamily: 'Heebo',
-                                    fontSize: 14,
-                                    color: AppColors.textHint)),
-                          ],
-                        ),
-                      ),
-                    ),
+                    child: _buildDetailImage(item, category),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(20),
@@ -1041,30 +1048,31 @@ class _ProductDetailsSheet extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.success
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
+                                if (item['isVerified'] == true)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.verified_rounded,
+                                            size: 14,
+                                            color: AppColors.success),
+                                        const SizedBox(width: 3),
+                                        Text('תורמת מאומתת',
+                                            style: TextStyle(
+                                                fontFamily: 'Heebo',
+                                                fontSize: 11,
+                                                color: AppColors.success,
+                                                fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.verified_rounded,
-                                          size: 14,
-                                          color: AppColors.success),
-                                      const SizedBox(width: 3),
-                                      Text('תורמת מאומתת',
-                                          style: TextStyle(
-                                              fontFamily: 'Heebo',
-                                              fontSize: 11,
-                                              color: AppColors.success,
-                                              fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -1261,6 +1269,43 @@ class _ProductDetailsSheet extends StatelessWidget {
     );
   }
 
+  Widget _buildDetailImage(Map<String, dynamic> item, String category) {
+    final images = item['images'];
+    if (images is List && images.isNotEmpty) {
+      return PageView.builder(
+        itemCount: images.length,
+        itemBuilder: (context, index) => Image.network(
+          images[index].toString(),
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: AppColors.surfaceVariant,
+              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          },
+          errorBuilder: (_, __, ___) => Container(
+            color: AppColors.surfaceVariant,
+            child: Icon(Icons.broken_image_rounded, size: 48, color: AppColors.textHint),
+          ),
+        ),
+      );
+    }
+    return Container(
+      color: AppColors.surfaceVariant,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.volunteer_activism, size: 64, color: AppColors.textHint),
+            const SizedBox(height: 8),
+            Text(category.isNotEmpty ? category : 'פריט', style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textHint)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1405,9 +1450,7 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            price == 0
-                ? 'הפריט נשלח לאישור ויפורסם בקרוב! 🎉'
-                : 'הפריט נשלח לאישור ויפורסם בקרוב! 🎉',
+            'הפריט נשלח לאישור ויפורסם בקרוב! 🎉',
             style: const TextStyle(fontFamily: 'Heebo'),
           ),
           backgroundColor: AppColors.success,
@@ -1604,10 +1647,41 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
                       scrollDirection: Axis.horizontal,
                       children: [
                         _buildAddPhotoButton(),
-                        ...List.generate(
-                          3,
-                          (index) => _buildPhotoPlaceholder(index),
+                        ..._selectedImages.asMap().entries.map((entry) =>
+                          Stack(
+                            children: [
+                              Container(
+                                width: 100,
+                                height: 100,
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  image: DecorationImage(
+                                    image: FileImage(File(entry.value)),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _selectedImages.removeAt(entry.key)),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        if (_selectedImages.length < 4)
+                          ...List.generate(
+                            3 - _selectedImages.length < 0 ? 0 : 3 - _selectedImages.length,
+                            (index) => _buildPhotoPlaceholder(index),
+                          ),
                       ],
                     ),
                   ),
