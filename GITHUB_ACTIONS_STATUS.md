@@ -126,7 +126,7 @@ mom-project/
 
 From existing project files:
 
-- **Account ID:** `c3da1f83e98070eb27dc17680e183bb3`
+- **Account ID:** *(set in GitHub Secrets)*
 - **Project Name:** `momit`
 - **Flutter Version:** 3.24.0 (from workflow)
 - **Deployment URL:** https://momit.pages.dev

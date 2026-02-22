@@ -137,7 +137,7 @@ If you need to update `build-web.zip`:
 ### wrangler.toml
 ```toml
 name = "momit"
-account_id = "c3da1f83e98070eb27dc17680e183bb3"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
 compatibility_date = "2026-02-14"
 pages_build_output_dir = "build/web"
 ```

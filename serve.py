@@ -2,7 +2,7 @@ import http.server
 import socketserver
 import os
 
-os.chdir('/Users/joni/.openclaw/workspace/mom-project/build/web')
+os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build', 'web'))
 
 class SecureCORSHandler(http.server.SimpleHTTPRequestHandler):
     """Secure HTTP handler with proper CORS and security headers"""

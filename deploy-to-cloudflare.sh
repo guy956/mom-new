@@ -11,8 +11,8 @@ if ! command -v wrangler &> /dev/null; then
 fi
 
 # Set environment variables
-export CLOUDFLARE_API_TOKEN="gUp2ZPURMWzfA2NCC-fiQZvk8JcEgj5K3RCClHO_"
-export CLOUDFLARE_ACCOUNT_ID="c3da1f83e98070eb27dc17680e183bb3"
+export CLOUDFLARE_API_TOKEN="${CLOUDFLARE_API_TOKEN:?Error: Set CLOUDFLARE_API_TOKEN env var}"
+export CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:?Error: Set CLOUDFLARE_ACCOUNT_ID env var}"
 
 echo "📦 Deploying build/web to momit.pages.dev..."
 echo ""

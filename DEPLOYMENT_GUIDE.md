@@ -286,7 +286,7 @@ The project includes `wrangler.toml` for Cloudflare Pages:
 
 ```toml
 name = "momit"
-account_id = "c3da1f83e98070eb27dc17680e183bb3"
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
 compatibility_date = "2026-02-14"
 pages_build_output_dir = "build/web"
 ```
@@ -483,7 +483,7 @@ JWT_REFRESH_SECRET=your_super_secret_refresh_key_min_32_chars_here_different_fro
 ADMIN_EMAILS=admin@momit.app,support@momit.app
 
 # Optional: Default admin password (change immediately after setup)
-DEFAULT_ADMIN_PASSWORD=ChangeThisPassword123!
+DEFAULT_ADMIN_PASSWORD=<generate-a-strong-password-here>
 
 # Firebase (if using Admin SDK)
 FIREBASE_PROJECT_ID=momit-1

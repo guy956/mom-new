@@ -6,8 +6,8 @@
 
 | Variable | Description | How to Obtain | Example |
 |----------|-------------|---------------|---------|
-| `CLOUDFLARE_API_TOKEN` | API token for Cloudflare API access | Cloudflare Dashboard → My Profile → API Tokens | `gUp2Z...` |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account identifier | Cloudflare Dashboard → any domain → right sidebar | `c3da1f83...` |
+| `CLOUDFLARE_API_TOKEN` | API token for Cloudflare API access | Cloudflare Dashboard → My Profile → API Tokens | *(your token)* |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account identifier | Cloudflare Dashboard → any domain → right sidebar | *(your account ID)* |
 
 ### Optional
 
@@ -42,7 +42,7 @@ openssl rand -base64 32
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `API_BASE_URL` | ✅ Yes | Base URL for API requests | `https://api.momit.app` |
-| `GEMINI_API_KEY` | ⚠️ Conditional | Google Gemini API key for AI chat | `AIzaSyDENOB...` |
+| `GEMINI_API_KEY` | ⚠️ Conditional | Google Gemini API key for AI chat | *(your Gemini key)* |
 
 **Get Gemini API Key:** https://ai.google.dev/
 

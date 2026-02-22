@@ -73,9 +73,11 @@ ios/Podfile.lock
 
 # Environment variables and deployment secrets
 .env
+.env.*
 .env.local
 .env.production
 .env.staging
+.env.test
 .deployment_config
 
 # Build outputs
@@ -88,6 +90,11 @@ ios/Podfile.lock
 # Release build artifacts (contain compiled code with embedded keys)
 /releases/
 /build/
+*.zip
+
+# Monitoring state
+.monitoring_log.txt
+.monitoring_state.json
 
 # Server logs
 server.log

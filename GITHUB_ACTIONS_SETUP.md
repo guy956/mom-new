@@ -10,11 +10,11 @@ Add these secrets:
 
 #### Required for Deployment:
 - **Name:** `CLOUDFLARE_API_TOKEN`
-  - **Value:** `gUp2ZPURMWzfA2NCC-fiQZvk8JcEgj5K3RCClHO_`
+  - **Value:** *(your Cloudflare API token)*
   - Get from: Cloudflare Dashboard → My Profile → API Tokens
 
 - **Name:** `CLOUDFLARE_ACCOUNT_ID`
-  - **Value:** `c3da1f83e98070eb27dc17680e183bb3`
+  - **Value:** *(your Cloudflare account ID)*
   - Get from: Cloudflare Dashboard → right sidebar
 
 - **Name:** `GITHUB_TOKEN`
