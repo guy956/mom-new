@@ -128,8 +128,8 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         final aPinned = a['isPinned'] == true ? 1 : 0;
         final bPinned = b['isPinned'] == true ? 1 : 0;
         if (aPinned != bPinned) return bPinned.compareTo(aPinned);
-        final aLikes = (a['likes'] ?? 0) as int;
-        final bLikes = (b['likes'] ?? 0) as int;
+        final aLikes = ((a['likes'] ?? 0) is int) ? (a['likes'] ?? 0) as int : (a['likes'] ?? 0).toInt();
+        final bLikes = ((b['likes'] ?? 0) is int) ? (b['likes'] ?? 0) as int : (b['likes'] ?? 0).toInt();
         if (aLikes != bLikes) return bLikes.compareTo(aLikes);
         return _parseTimestamp(b['createdAt']).compareTo(_parseTimestamp(a['createdAt']));
       });

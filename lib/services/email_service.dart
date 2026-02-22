@@ -147,9 +147,9 @@ class EmailService {
     String? dashboardLink,
   }) {
     final typeLabel = _getTypeLabel(type);
-    final userName = itemData['createdBy'] ?? itemData['userName'] ?? itemData['author'] ?? 'משתמש לא ידוע';
+    final userName = _htmlEscape(itemData['createdBy'] ?? itemData['userName'] ?? itemData['author'] ?? 'משתמש לא ידוע');
     final createdAt = _formatDate(itemData['createdAt']);
-    final itemId = itemData['id'] ?? 'unknown';
+    final itemId = _htmlEscape(itemData['id'] ?? 'unknown');
 
     // Build dashboard link
     final approvalLink = dashboardLink ?? 'https://momit.pages.dev/admin';
@@ -311,19 +311,19 @@ class EmailService {
         </div>
         <div class="info-row">
           <span class="info-label">נוצר על ידי:</span>
-          <span class="info-value">${itemData['creatorName'] ?? itemData['createdBy'] ?? itemData['userName'] ?? 'לא צוין'}</span>
+          <span class="info-value">${_htmlEscape(itemData['creatorName'] ?? itemData['createdBy'] ?? itemData['userName'] ?? 'לא צוין')}</span>
         </div>
         <div class="info-row">
           <span class="info-label">📧 אימייל:</span>
-          <span class="info-value">${itemData['creatorEmail'] ?? itemData['email'] ?? 'לא צוין'}</span>
+          <span class="info-value">${_htmlEscape(itemData['creatorEmail'] ?? itemData['email'] ?? 'לא צוין')}</span>
         </div>
         <div class="info-row">
           <span class="info-label">📞 טלפון:</span>
-          <span class="info-value">${itemData['creatorPhone'] ?? itemData['phone'] ?? itemData['contact'] ?? 'לא צוין'}</span>
+          <span class="info-value">${_htmlEscape(itemData['creatorPhone'] ?? itemData['phone'] ?? itemData['contact'] ?? 'לא צוין')}</span>
         </div>
         <div class="info-row">
           <span class="info-label">פרטים:</span>
-          <span class="info-value">$details</span>
+          <span class="info-value">${_htmlEscape(details)}</span>
         </div>
       </div>
 
@@ -551,6 +551,16 @@ class EmailService {
     } catch (e) {
       return 'לא צוין';
     }
+  }
+
+  /// HTML-escape user input to prevent XSS
+  String _htmlEscape(dynamic value) {
+    return value.toString()
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
   }
 
   /// Truncate text with ellipsis
