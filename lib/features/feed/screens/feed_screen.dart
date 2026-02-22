@@ -29,12 +29,40 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _showSearch = false;
+  final Set<String> _savedPostIds = {};
+  final Set<String> _hiddenPostIds = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     timeago.setLocaleMessages('he', timeago.HeMessages());
+    _loadSavedItems();
+  }
+
+  Future<void> _loadSavedItems() async {
+    final userId = context.read<AppState>().currentUser?.id;
+    if (userId == null) return;
+    final fs = context.read<FirestoreService>();
+    final ids = await fs.getSavedItemIds(userId);
+    if (mounted) setState(() => _savedPostIds.addAll(ids));
+  }
+
+  Future<void> _toggleSavePost(String postId) async {
+    final userId = context.read<AppState>().currentUser?.id;
+    if (userId == null) return;
+    final fs = context.read<FirestoreService>();
+    final isSaved = _savedPostIds.contains(postId);
+    setState(() {
+      if (isSaved) { _savedPostIds.remove(postId); } else { _savedPostIds.add(postId); }
+    });
+    try {
+      if (isSaved) { await fs.unsaveItem(userId, postId); } else { await fs.saveItem(userId, postId); }
+    } catch (e) {
+      if (mounted) setState(() {
+        if (isSaved) { _savedPostIds.add(postId); } else { _savedPostIds.remove(postId); }
+      });
+    }
   }
 
   @override
@@ -62,6 +90,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   /// Sort posts: pinned first, then by createdAt descending. Only show approved posts.
   List<Map<String, dynamic>> _sortAndFilter(List<Map<String, dynamic>> posts) {
     var filtered = List<Map<String, dynamic>>.from(posts);
+
+    // Filter hidden posts
+    filtered = filtered.where((p) => !_hiddenPostIds.contains(p['id'])).toList();
 
     // Status filter: only show approved posts to regular users
     filtered = filtered.where((p) {
@@ -765,19 +796,12 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 onTap: () => _sharePost(post),
               ),
               _buildActionButton(
-                icon: Icons.bookmark_border,
-                label: 'שמירה',
-                color: AppColors.textSecondary,
+                icon: _savedPostIds.contains(post['id']) ? Icons.bookmark : Icons.bookmark_border,
+                label: _savedPostIds.contains(post['id']) ? 'נשמר' : 'שמירה',
+                color: _savedPostIds.contains(post['id']) ? AppColors.primary : AppColors.textSecondary,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('נשמר בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
+                  final postId = post['id'];
+                  if (postId != null) _toggleSavePost(postId);
                 },
               ),
             ],
@@ -937,24 +961,32 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.bookmark_border),
-              title: const Text('שמור פוסט', style: TextStyle(fontFamily: 'Heebo')),
+              leading: Icon(_savedPostIds.contains(post['id']) ? Icons.bookmark : Icons.bookmark_border),
+              title: Text(_savedPostIds.contains(post['id']) ? 'הסר שמירה' : 'שמור פוסט', style: const TextStyle(fontFamily: 'Heebo')),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('נשמר בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
-                    backgroundColor: AppColors.primary,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                final postId = post['id'];
+                if (postId != null) _toggleSavePost(postId);
               },
             ),
             ListTile(
               leading: const Icon(Icons.visibility_off_outlined),
               title: const Text('הסתר פוסט', style: TextStyle(fontFamily: 'Heebo')),
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                Navigator.pop(context);
+                final postId = post['id'];
+                if (postId != null) {
+                  setState(() => _hiddenPostIds.add(postId));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('הפוסט הוסתר', style: TextStyle(fontFamily: 'Heebo')),
+                      backgroundColor: AppColors.info,
+                      behavior: SnackBarBehavior.floating,
+                      action: SnackBarAction(label: 'בטל', textColor: Colors.white, onPressed: () => setState(() => _hiddenPostIds.remove(postId))),
+                    ),
+                  );
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.flag_outlined, color: AppColors.error),
@@ -963,9 +995,15 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
                 Navigator.pop(context);
                 final postId = post['id'];
                 if (postId != null) {
-                  final currentReports = (post['reportCount'] ?? 0) is int ? (post['reportCount'] ?? 0) as int : 0;
                   final fs = Provider.of<FirestoreService>(context, listen: false);
-                  fs.updatePost(postId, {'reportCount': currentReports + 1});
+                  final userId = context.read<AppState>().currentUser?.id ?? '';
+                  fs.addReport({
+                    'postId': postId,
+                    'reporterId': userId,
+                    'reason': 'user_report',
+                    'status': 'pending',
+                  });
+                  fs.updatePost(postId, {'reports': FieldValue.increment(1)});
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('הדיווח נשלח, תודה!', style: TextStyle(fontFamily: 'Heebo')),

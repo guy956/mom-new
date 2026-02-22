@@ -716,13 +716,13 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      await _db.collection('user_notifications').add({
+      await _db.collection('notifications').add({
         'userId': userId,
         'title': title,
         'body': body,
         'type': type,
         'data': data ?? {},
-        'read': false,
+        'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {

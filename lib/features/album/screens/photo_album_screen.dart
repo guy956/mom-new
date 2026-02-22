@@ -20,10 +20,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
   late TabController _tabController;
   int _selectedChild = 0;
 
-  final List<Map<String, dynamic>> _children = [
-    {'name': 'נועה', 'emoji': '👧', 'color': AppColors.secondary},
-    {'name': 'איתן', 'emoji': '👦', 'color': AppColors.info},
-  ];
+  List<Map<String, dynamic>> _children = [];
 
   List<Map<String, dynamic>> _albums = [];
   // Photos stored per album: albumTitle -> list of photo data
@@ -42,7 +39,23 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadChildren();
     _loadAlbums();
+  }
+
+  void _loadChildren() {
+    final appState = context.read<AppState>();
+    final userChildren = appState.currentUser?.children ?? [];
+    final colors = [AppColors.secondary, AppColors.info, AppColors.accent, AppColors.primary];
+    final emojis = ['👧', '👦', '👶', '🧒'];
+    _children = userChildren.asMap().entries.map((e) => {
+      'name': e.value.name,
+      'emoji': emojis[e.key % emojis.length],
+      'color': colors[e.key % colors.length],
+    }).toList();
+    if (_children.isEmpty) {
+      _children = [{'name': 'ילד/ה', 'emoji': '👶', 'color': AppColors.primary}];
+    }
   }
 
   @override
@@ -80,55 +93,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
       debugPrint('Error loading albums: $e');
     }
 
-    if (_albums.isEmpty) {
-      _albums = [
-        {
-          'title': 'צעדים ראשונים',
-          'child': 'נועה',
-          'count': 0,
-          'isPrivate': false,
-          'coverColor': AppColors.primary,
-          'coverColorValue': AppColors.primary.toARGB32(),
-          'emoji': '👣',
-          'date': 'יוני 2024',
-          'createdBy': 'משתמשת',
-        },
-        {
-          'title': 'יום הולדת שנה',
-          'child': 'נועה',
-          'count': 0,
-          'isPrivate': false,
-          'coverColor': AppColors.secondary,
-          'coverColorValue': AppColors.secondary.toARGB32(),
-          'emoji': '🎂',
-          'date': 'מרץ 2023',
-          'createdBy': 'משתמשת',
-        },
-        {
-          'title': 'חיוכים ראשונים',
-          'child': 'איתן',
-          'count': 0,
-          'isPrivate': false,
-          'coverColor': AppColors.accent,
-          'coverColorValue': AppColors.accent.toARGB32(),
-          'emoji': '😊',
-          'date': 'פברואר 2024',
-          'createdBy': 'משתמשת',
-        },
-        {
-          'title': 'רגעים יומיומיים',
-          'child': 'איתן',
-          'count': 0,
-          'isPrivate': true,
-          'coverColor': const Color(0xFFD1C2D3),
-          'coverColorValue': const Color(0xFFD1C2D3).toARGB32(),
-          'emoji': '📸',
-          'date': 'שוטף',
-          'createdBy': 'משתמשת',
-        },
-      ];
-      _saveAlbums();
-    }
+    // No demo albums - user creates their own
 
     if (mounted) setState(() {});
   }

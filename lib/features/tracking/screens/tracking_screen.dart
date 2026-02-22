@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/models/tracking_models.dart';
 import 'package:mom_connect/services/app_state.dart';
+import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/tracking_service.dart';
 
 /// מסך מעקב תינוק מקצועי עם CRUD מלא
@@ -29,7 +30,8 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
     // Initialize tracking service scoped to the current user
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userId = context.read<AppState>().currentUser?.id;
-      context.read<TrackingService>().init(userId: userId);
+      final firestoreService = context.read<FirestoreService>();
+      context.read<TrackingService>().init(userId: userId, firestoreService: firestoreService);
     });
   }
 

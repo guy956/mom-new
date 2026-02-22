@@ -72,6 +72,7 @@ ios/Podfile.lock
 # /ios/Runner/GoogleService-Info.plist
 
 # Environment variables
+.env
 .env.local
 .env.production
 .env.staging

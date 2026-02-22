@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mom_connect/models/tracking_models.dart';
 import 'package:mom_connect/models/user_model.dart';
+import 'package:mom_connect/services/firestore_service.dart';
 
 /// שירות מעקב - ניהול CRUD מלא עם שמירה ב-Hive
 class TrackingService extends ChangeNotifier {
@@ -15,6 +16,7 @@ class TrackingService extends ChangeNotifier {
 
   /// The userId this service is scoped to
   String? _userId;
+  FirestoreService? _firestoreService;
 
   List<ChildProfile> _children = [];
   List<TrackingRecord> _records = [];
@@ -26,7 +28,7 @@ class TrackingService extends ChangeNotifier {
 
   /// Initialize with a [userId] to scope Hive boxes per user.
   /// If [userId] is null or empty, falls back to global box names.
-  Future<void> init({String? userId}) async {
+  Future<void> init({String? userId, FirestoreService? firestoreService}) async {
     // If re-initializing for a different user, close old boxes and reset
     if (_isInitialized && userId != _userId) {
       _children = [];
@@ -36,6 +38,7 @@ class TrackingService extends ChangeNotifier {
     if (_isInitialized) return;
 
     _userId = userId;
+    _firestoreService = firestoreService;
     if (userId != null && userId.isNotEmpty) {
       _childrenBoxName = '${userId}_$_childrenBoxBaseName';
       _recordsBoxName = '${userId}_$_recordsBoxBaseName';
@@ -141,10 +144,24 @@ class TrackingService extends ChangeNotifier {
     return _children.map((cp) => childProfileToModel(cp)).toList();
   }
 
+  // ===== Firestore sync helper =====
+  void _syncChildToFirestore(ChildProfile child) {
+    if (_userId != null && _firestoreService != null) {
+      _firestoreService!.saveTrackingChild(_userId!, child.toJson());
+    }
+  }
+
+  void _syncRecordToFirestore(TrackingRecord record) {
+    if (_userId != null && _firestoreService != null) {
+      _firestoreService!.saveTrackingRecord(_userId!, record.toJson());
+    }
+  }
+
   // ===== Children CRUD =====
   void addChild(ChildProfile child) {
     _children.add(child);
     Hive.box<String>(_childrenBoxName).put(child.id, jsonEncode(child.toJson()));
+    _syncChildToFirestore(child);
     notifyListeners();
   }
 
@@ -153,6 +170,7 @@ class TrackingService extends ChangeNotifier {
     if (idx != -1) {
       _children[idx] = child;
       Hive.box<String>(_childrenBoxName).put(child.id, jsonEncode(child.toJson()));
+      _syncChildToFirestore(child);
       notifyListeners();
     }
   }
@@ -171,6 +189,9 @@ class TrackingService extends ChangeNotifier {
     for (final key in keysToRemove) {
       recordsBox.delete(key);
     }
+    if (_userId != null && _firestoreService != null) {
+      _firestoreService!.deleteTrackingChild(_userId!, childId);
+    }
     notifyListeners();
   }
 
@@ -178,6 +199,7 @@ class TrackingService extends ChangeNotifier {
   void addRecord(TrackingRecord record) {
     _records.insert(0, record);
     Hive.box<String>(_recordsBoxName).put(record.id, jsonEncode(record.toJson()));
+    _syncRecordToFirestore(record);
     notifyListeners();
   }
 
@@ -186,6 +208,7 @@ class TrackingService extends ChangeNotifier {
     if (idx != -1) {
       _records[idx] = record;
       Hive.box<String>(_recordsBoxName).put(record.id, jsonEncode(record.toJson()));
+      _syncRecordToFirestore(record);
       _records.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       notifyListeners();
     }
@@ -194,6 +217,9 @@ class TrackingService extends ChangeNotifier {
   void deleteRecord(String recordId) {
     _records.removeWhere((r) => r.id == recordId);
     Hive.box<String>(_recordsBoxName).delete(recordId);
+    if (_userId != null && _firestoreService != null) {
+      _firestoreService!.deleteTrackingRecord(_userId!, recordId);
+    }
     notifyListeners();
   }
 

@@ -6,6 +6,7 @@ import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/features/auth/screens/login_screen.dart';
 import 'package:mom_connect/features/auth/screens/register_screen.dart';
 import 'package:mom_connect/features/home/screens/main_screen.dart';
+import 'package:mom_connect/features/auth/screens/intro_splash_screen.dart';
 import 'package:mom_connect/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:mom_connect/services/auth_service.dart';
 import 'package:mom_connect/services/app_state.dart';
@@ -93,7 +94,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         context.read<AppState>().loginAsAdmin(savedSession['email'] ?? '');
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
           (route) => false,
         );
         return;
@@ -147,7 +148,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          MaterialPageRoute(builder: (_) => IntroSplashScreen(userName: userData['fullName'] ?? '')),
           (route) => false,
         );
       }
@@ -461,16 +462,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // App stats
+                // App stats - real count from Firestore
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '\u05db\u05d1\u05e8 4,250+ \u05d0\u05de\u05d4\u05d5\u05ea \u05d1\u05e7\u05d4\u05d9\u05dc\u05d4',
-                    style: TextStyle(
-                      fontFamily: 'Heebo',
-                      fontSize: 13,
-                      color: AppColors.textHint,
-                    ),
+                  child: FutureBuilder<int>(
+                    future: AuthService.instance.getRegisteredUsersCount(),
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count < 10) return const SizedBox.shrink();
+                      return Text(
+                        '\u05db\u05d1\u05e8 $count+ \u05d0\u05de\u05d4\u05d5\u05ea \u05d1\u05e7\u05d4\u05d9\u05dc\u05d4',
+                        style: TextStyle(
+                          fontFamily: 'Heebo',
+                          fontSize: 13,
+                          color: AppColors.textHint,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

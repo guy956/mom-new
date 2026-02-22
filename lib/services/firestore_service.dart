@@ -965,17 +965,34 @@ class FirestoreService extends ChangeNotifier {
           .snapshots()
           .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
-  /// Save a new tracking record for a specific user
+  /// Save or update a tracking record for a specific user
   Future<void> saveTrackingRecord(String userId, Map<String, dynamic> data) =>
-      _db.collection('users').doc(userId).collection('tracking_records').add({
+      _db.collection('users').doc(userId).collection('tracking_records').doc(data['id']).set({
         ...data,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  /// Delete a tracking child profile
+  Future<void> deleteTrackingChild(String userId, String childId) async {
+    await _db.collection('users').doc(userId).collection('tracking_children').doc(childId).delete();
+    // Also delete all records for this child
+    final records = await _db.collection('users').doc(userId).collection('tracking_records')
+        .where('childId', isEqualTo: childId).get();
+    final batch = _db.batch();
+    for (final doc in records.docs) {
+      batch.delete(doc.reference);
+    }
+    if (records.docs.isNotEmpty) await batch.commit();
+  }
+
+  /// Delete a tracking record
+  Future<void> deleteTrackingRecord(String userId, String recordId) =>
+      _db.collection('users').doc(userId).collection('tracking_records').doc(recordId).delete();
 
   /// Stream of tracking records for a specific user, ordered by creation time descending
   Stream<List<Map<String, dynamic>>> trackingRecordsStream(String userId) =>
       _db.collection('users').doc(userId).collection('tracking_records')
-          .orderBy('createdAt', descending: true)
+          .orderBy('updatedAt', descending: true)
           .snapshots()
           .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
@@ -1048,17 +1065,17 @@ class FirestoreService extends ChangeNotifier {
     'appName': 'MOMIT',
     'slogan': 'כי רק אמא מבינה אמא',
     'description': 'רשת חברתית לאמהות בישראל',
-    'whatsappLink': 'https://chat.whatsapp.com/momit',
-    'whatsappGroupName': 'MOMIT Community',
-    'whatsappMembers': '500',
-    'whatsappDescription': 'קבוצת WhatsApp הרשמית של MOMIT',
-    'instagram': 'https://instagram.com/momit_il',
-    'facebook': 'https://facebook.com/momit.il',
+    'whatsappLink': '',
+    'whatsappGroupName': '',
+    'whatsappMembers': '',
+    'whatsappDescription': '',
+    'instagram': '',
+    'facebook': '',
     'website': 'https://momit.pages.dev',
-    'contactEmail': 'support@momconnect.co.il',
-    'contactPhone': '03-1234567',
-    'termsUrl': 'https://momit.pages.dev/terms',
-    'privacyUrl': 'https://momit.pages.dev/privacy',
+    'contactEmail': '',
+    'contactPhone': '',
+    'termsUrl': '',
+    'privacyUrl': '',
     'welcomeTitle': 'ברוכה הבאה ל-MOMIT',
     'welcomeSubtitle': 'הרשת החברתית לאמהות',
     'welcomeDescription': 'הצטרפי לקהילה הכי חמה בישראל',
@@ -1397,13 +1414,20 @@ class FirestoreService extends ChangeNotifier {
     }
   }
 
-  /// Delete a chat group
+  /// Delete a chat group and all its messages
   Future<void> deleteChatGroup(String groupId) async {
     try {
-      await _db.collection('chatGroups').doc(groupId).delete();
-      debugPrint('[FirestoreService] ✅ Chat group deleted: $groupId');
+      final msgs = await _db.collection('chatGroups').doc(groupId)
+          .collection('messages').get();
+      final batch = _db.batch();
+      for (final doc in msgs.docs) {
+        batch.delete(doc.reference);
+      }
+      batch.delete(_db.collection('chatGroups').doc(groupId));
+      await batch.commit();
+      debugPrint('[FirestoreService] Chat group and messages deleted: $groupId');
     } catch (e) {
-      debugPrint('[FirestoreService] ❌ Error deleting chat group: $e');
+      debugPrint('[FirestoreService] Error deleting chat group: $e');
       rethrow;
     }
   }

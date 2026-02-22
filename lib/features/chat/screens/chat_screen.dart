@@ -746,12 +746,14 @@ class _ChatScreenState extends State<ChatScreen>
                         onTap: () async {
                           Navigator.pop(sheetCtx);
                           try {
+                            final fromAvatar = context.read<AppState>().currentUser?.profileImage;
                             final convId = await fs.createDirectMessage(
                               fromUserId: userId,
                               fromUserName: userName,
                               toUserId: user['id'],
                               toUserName:
                                   user['fullName'] ?? user['email'] ?? 'משתמשת',
+                              fromAvatar: fromAvatar,
                               toAvatar: user['profileImage'],
                             );
                             if (mounted) {

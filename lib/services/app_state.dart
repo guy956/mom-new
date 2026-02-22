@@ -571,20 +571,11 @@ class AppState extends ChangeNotifier {
   }
 
   /// Get all registered users count (from AuthService)
-  int get registeredUsersCount {
+  Future<int> getRegisteredUsersCount() async {
     try {
-      return AuthService.instance.registeredUsersCount;
+      return await AuthService.instance.getRegisteredUsersCount();
     } catch (_) {
       return 0;
-    }
-  }
-
-  /// Get all registered users data (for admin)
-  List<Map<String, dynamic>> get allUsersData {
-    try {
-      return AuthService.instance.getAllUsersData();
-    } catch (_) {
-      return [];
     }
   }
 

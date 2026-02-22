@@ -998,11 +998,16 @@ class AuthService with RateLimitMixin {
     }
   }
 
-  /// Get registered users count (mock for web build)
-  int get registeredUsersCount => 1;
-
-  /// Get all users data (mock for web build)
-  List<Map<String, dynamic>> getAllUsersData() => [];
+  /// Get registered users count from Firestore
+  Future<int> getRegisteredUsersCount() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('users').count().get();
+      return snapshot.count ?? 0;
+    } catch (e) {
+      debugPrint('[AuthService] Error getting users count: $e');
+      return 0;
+    }
+  }
 
   /// Request password reset with rate limiting (3 per hour)
   Future<PasswordResetResult> requestPasswordReset(String email) async {
@@ -1030,8 +1035,7 @@ class AuthService with RateLimitMixin {
         details: 'Password reset requested',
       );
 
-      // TODO: In production, send actual email with reset link
-      // For now, we simulate success
+      await fb_auth.FirebaseAuth.instance.sendPasswordResetEmail(email: emailLower);
       return PasswordResetResult.success(
         message: 'אם קיים חשבון עם כתובת זו, נשלח קישור לאיפוס סיסמה',
       );

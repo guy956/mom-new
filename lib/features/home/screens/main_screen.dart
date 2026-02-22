@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/core/widgets/common_widgets.dart';
@@ -247,12 +250,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     const Spacer(),
                     _buildIconBtn(Icons.search_rounded, onTap: _showSearchSheet),
                     const SizedBox(width: 6),
-                    NotificationBadge(
-                      count: 5,
-                      child: _buildIconBtn(
-                        Icons.notifications_outlined,
-                        onTap: _showNotifications,
-                      ),
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: Provider.of<FirestoreService>(context, listen: false)
+                          .userNotificationsStream(context.read<AppState>().currentUser?.id ?? ''),
+                      builder: (ctx, snap) {
+                        final unread = (snap.data ?? []).where((n) => n['isRead'] != true).length;
+                        return NotificationBadge(
+                          count: unread,
+                          child: _buildIconBtn(
+                            Icons.notifications_outlined,
+                            onTap: _showNotifications,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -458,8 +468,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             children: navigationItems.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
-              // Show badge on chat tab
-              final badge = item.key == 'chat' ? 2 : 0;
+              // Chat badge - no hardcoded count
+              final badge = 0;
               return _buildNavItem(
                 index,
                 item.iconData,
@@ -679,11 +689,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildMiniStat('Level 12', Icons.trending_up_rounded),
+                            _buildMiniStat('הישגים', Icons.trending_up_rounded),
                             _buildDividerDot(),
-                            _buildMiniStat('580', Icons.stars_rounded),
+                            _buildMiniStat('נקודות', Icons.stars_rounded),
                             _buildDividerDot(),
-                            _buildMiniStat('7 ימים', Icons.local_fire_department_rounded),
+                            _buildMiniStat('רצף', Icons.local_fire_department_rounded),
                           ],
                         ),
                       ),
@@ -715,7 +725,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         ...navigationItems.asMap().entries.map((entry) {
                           final index = entry.key;
                           final item = entry.value;
-                          final badge = item.key == 'chat' ? 2 : 0;
                           return _buildDrawerItem(
                             item.activeIconData,
                             item.labelHe,
@@ -724,7 +733,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                               Navigator.pop(context);
                             },
                             isSelected: _currentIndex == index,
-                            badge: badge,
                           );
                         }),
 
@@ -1101,6 +1109,8 @@ class _NotificationsSheet extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {
+                      final userId = context.read<AppState>().currentUser?.id ?? '';
+                      Provider.of<FirestoreService>(context, listen: false).markAllNotificationsRead(userId);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: const Text('כל ההתראות סומנו כנקראו', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                       );
@@ -1113,31 +1123,45 @@ class _NotificationsSheet extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildNotif('מיכל לוין', 'אהבה את הפוסט שלך', Icons.favorite_rounded, AppColors.secondary, '5 דקות', true, onTap: () {
-                  Navigator.pop(context);
-                }),
-                _buildNotif('MomBot', 'טיפ חדש בשבילך!', Icons.auto_awesome_rounded, const Color(0xFFD1C2D3), '10 דקות', true, onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AIChatScreen()));
-                }),
-                _buildNotif('נועה ישראלי', 'הגיבה: "מסכימה לגמרי!"', Icons.chat_bubble_rounded, AppColors.primary, '15 דקות', true, onTap: () {
-                  Navigator.pop(context);
-                }),
-                _buildNotif('הישג חדש!', 'קיבלת את תג "דברנית"', Icons.emoji_events_rounded, AppColors.accent, '30 דקות', true, onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const GamificationScreen()));
-                }),
-                _buildNotif('SOS קרוב', 'אמא באזורך צריכה עזרה', Icons.sos_rounded, AppColors.error, 'שעה', false, onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SOSScreen()));
-                }),
-                _buildNotif('אירוע מחר', 'יוגה לאמהות - 10:00', Icons.event_rounded, AppColors.accent, '2 שעות', false, onTap: () {
-                  Navigator.pop(context);
-                }),
-              ],
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: Provider.of<FirestoreService>(context, listen: false)
+                  .userNotificationsStream(context.read<AppState>().currentUser?.id ?? ''),
+              builder: (ctx, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final notifs = snap.data ?? [];
+                if (notifs.isEmpty) {
+                  return const Center(child: Text('אין התראות חדשות', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint)));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: notifs.length > 10 ? 10 : notifs.length,
+                  itemBuilder: (ctx, i) {
+                    final n = notifs[i];
+                    final isUnread = n['isRead'] != true;
+                    final title = n['title'] ?? '';
+                    final body = n['body'] ?? '';
+                    final type = n['type'] ?? 'general';
+                    IconData icon = Icons.notifications_rounded;
+                    Color color = AppColors.primary;
+                    if (type == 'like') { icon = Icons.favorite_rounded; color = AppColors.secondary; }
+                    else if (type == 'comment') { icon = Icons.chat_bubble_rounded; color = AppColors.primary; }
+                    else if (type == 'sos') { icon = Icons.sos_rounded; color = AppColors.error; }
+                    else if (type == 'event') { icon = Icons.event_rounded; color = AppColors.accent; }
+                    final createdAt = n['createdAt'];
+                    String timeStr = '';
+                    if (createdAt is Timestamp) {
+                      timeStr = timeago.format(createdAt.toDate(), locale: 'he');
+                    }
+                    return _buildNotif(title, body, icon, color, timeStr, isUnread, onTap: () {
+                      Navigator.pop(context);
+                      final fs = Provider.of<FirestoreService>(context, listen: false);
+                      if (n['id'] != null && isUnread) fs.markNotificationRead(n['id']);
+                    });
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -1614,7 +1638,9 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
             height: 200,
             color: AppColors.surfaceVariant,
             child: _selectedImagePath != null
-              ? Image.file(File(_selectedImagePath!), fit: BoxFit.cover)
+              ? (kIsWeb
+                  ? Image.network(_selectedImagePath!, fit: BoxFit.cover)
+                  : Image.file(File(_selectedImagePath!), fit: BoxFit.cover))
               : const Center(child: Icon(Icons.image_rounded, size: 50, color: AppColors.textHint)),
           ),
         ),

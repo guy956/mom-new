@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _rememberMe = false;
   late AnimationController _shakeController;
 
   @override
@@ -176,13 +175,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   Widget _buildRememberAndForgot() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Row(children: [
-          SizedBox(width: 24, height: 24, child: Checkbox(value: _rememberMe, onChanged: (v) => setState(() => _rememberMe = v ?? false), activeColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)))),
-          const SizedBox(width: 8),
-          const Text('\u05d6\u05db\u05e8\u05d9 \u05d0\u05d5\u05ea\u05d9', style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: AppColors.textSecondary)),
-        ]),
         TextButton(onPressed: _showForgotPasswordSheet, child: Text(TextConfig.forgotPassword, style: const TextStyle(fontFamily: 'Heebo', fontSize: 13, fontWeight: FontWeight.w600))),
       ],
     );

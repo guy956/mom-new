@@ -38,6 +38,12 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
   final List<String> _selectedTags = [];
 
   @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6F7),
