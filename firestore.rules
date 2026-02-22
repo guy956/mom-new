@@ -133,11 +133,10 @@ service cloud.firestore {
       allow write: if isAdmin(); // SECURITY: Only admins can modify roles
     }
 
-    // Activity log - admin only read, authenticated create own entries
+    // Activity log - admin read/create, authenticated create own entries
     match /activity_log/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
     }
     
     // Push notifications - authenticated read own, admin write all
@@ -212,10 +211,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Mood Entries - owner only
+    // Mood Entries - owner or admin
     match /mood_entries/{entryId} {
       allow read: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
+        (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAuthenticated() &&
@@ -237,14 +236,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
     }
     
-    // Notifications - authenticated create own, owner read
+    // Notifications - authenticated create own, owner read, admin full access
     // Flat collection: each doc has a 'userId' field
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() &&
         request.resource.data.userId is string;
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow delete: if isAdmin();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Admin notifications - admin read/write, authenticated create

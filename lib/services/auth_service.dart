@@ -552,6 +552,68 @@ class AuthService with RateLimitMixin {
           password: password,
         );
       } on fb_auth.FirebaseAuthException catch (e) {
+        // If admin email not found in Firebase Auth, auto-register it
+        if ((e.code == 'user-not-found' || e.code == 'invalid-credential') && isAdminEmail(emailLower)) {
+          debugPrint('[AuthService] Admin email not found in Firebase Auth - auto-registering: $emailLower');
+          try {
+            final newCredential = await fb_auth.FirebaseAuth.instance
+                .createUserWithEmailAndPassword(
+              email: emailLower,
+              password: password,
+            );
+            final newUser = newCredential.user;
+            if (newUser == null) {
+              return AuthResult.failure('שגיאה ביצירת חשבון אדמין');
+            }
+            await newUser.updateDisplayName('Admin');
+
+            final userId = newUser.uid;
+            // Create Firestore user document for admin
+            await FirebaseFirestore.instance.collection('users').doc(userId).set({
+              'id': userId,
+              'email': emailLower,
+              'fullName': 'Admin',
+              'isAdmin': true,
+              'role': 'admin',
+              'status': 'active',
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastActive': FieldValue.serverTimestamp(),
+              'isOnline': true,
+              'isVerified': true,
+              'loginCount': 1,
+            });
+
+            // Generate local JWT tokens
+            final tokens = JwtService.instance.generateTokenPair(
+              email: emailLower,
+              userId: userId,
+              isAdmin: true,
+            );
+            await SecureTokenStorage.saveTokens(tokens);
+
+            final userData = {
+              'id': userId,
+              'email': emailLower,
+              'fullName': 'Admin',
+              'isAdmin': true,
+              'lastActive': DateTime.now().toIso8601String(),
+              'loginCount': 1,
+            };
+            await SecureTokenStorage.saveUserData(userData);
+
+            if (kIsWeb) {
+              _setSecureSessionCookies(emailLower, tokens);
+            }
+
+            await logUserActivity(email: emailLower, activityType: 'admin_auto_register', details: 'Admin auto-registered on first login');
+            debugPrint('[AuthService] Admin auto-registered: $emailLower (uid: $userId)');
+            return AuthResult.success(userData, tokens);
+          } catch (autoRegError) {
+            debugPrint('[AuthService] Admin auto-register failed: $autoRegError');
+            return AuthResult.failure('שגיאה ביצירת חשבון אדמין: $autoRegError');
+          }
+        }
+
         switch (e.code) {
           case 'user-not-found':
             return AuthResult.failure('משתמש לא נמצא - נסי להירשם');

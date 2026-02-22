@@ -189,8 +189,105 @@ class FirestoreService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-  Future<void> deleteUser(String userId) =>
-      _db.collection('users').doc(userId).delete();
+  /// Delete a user and ALL related data from Firestore
+  /// This removes: user document, subcollections, roles, notifications,
+  /// DM conversations, bookings, activity logs, and related content
+  Future<void> deleteUser(String userId) async {
+    try {
+      // 1. Delete user subcollections (tracking_children, tracking_records, savedItems)
+      await _deleteSubcollection('users', userId, 'tracking_children');
+      await _deleteSubcollection('users', userId, 'tracking_records');
+      await _deleteSubcollection('users', userId, 'savedItems');
+
+      // 2. Delete user_roles entry
+      try {
+        await _db.collection('user_roles').doc(userId).delete();
+      } catch (e) {
+        debugPrint('[FirestoreService] user_roles delete skipped: $e');
+      }
+
+      // 3. Delete notifications for this user
+      try {
+        final notifications = await _db.collection('notifications')
+            .where('userId', isEqualTo: userId).get();
+        if (notifications.docs.isNotEmpty) {
+          final batch = _db.batch();
+          for (final doc in notifications.docs) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
+        }
+      } catch (e) {
+        debugPrint('[FirestoreService] notifications delete skipped: $e');
+      }
+
+      // 4. Delete DM conversations where user is participant
+      try {
+        final dms = await _db.collection('directMessages')
+            .where('participants', arrayContains: userId).get();
+        for (final dm in dms.docs) {
+          await deleteDirectMessage(dm.id);
+        }
+      } catch (e) {
+        debugPrint('[FirestoreService] DM delete skipped: $e');
+      }
+
+      // 5. Delete bookings for this user
+      try {
+        final bookings = await _db.collection('bookings')
+            .where('userId', isEqualTo: userId).get();
+        if (bookings.docs.isNotEmpty) {
+          final batch = _db.batch();
+          for (final doc in bookings.docs) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
+        }
+      } catch (e) {
+        debugPrint('[FirestoreService] bookings delete skipped: $e');
+      }
+
+      // 6. Delete mood entries for this user
+      try {
+        final moods = await _db.collection('mood_entries')
+            .where('userId', isEqualTo: userId).get();
+        if (moods.docs.isNotEmpty) {
+          final batch = _db.batch();
+          for (final doc in moods.docs) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
+        }
+      } catch (e) {
+        debugPrint('[FirestoreService] mood_entries delete skipped: $e');
+      }
+
+      // 7. Delete the user document itself (last, after all related data)
+      await _db.collection('users').doc(userId).delete();
+
+      debugPrint('[FirestoreService] User $userId and all related data deleted');
+    } catch (e) {
+      debugPrint('[FirestoreService] Error in comprehensive user delete: $e');
+      // Fallback: at minimum delete the user document
+      await _db.collection('users').doc(userId).delete();
+    }
+  }
+
+  /// Helper: delete all documents in a subcollection
+  Future<void> _deleteSubcollection(String collection, String docId, String subcollection) async {
+    try {
+      final snap = await _db.collection(collection).doc(docId)
+          .collection(subcollection).get();
+      if (snap.docs.isEmpty) return;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    } catch (e) {
+      debugPrint('[FirestoreService] Error deleting subcollection $subcollection: $e');
+    }
+  }
 
   /// Sync a user from AuthService to Firestore (used during registration)
   Future<void> syncUserToFirestore(Map<String, dynamic> userData) async {

@@ -101,11 +101,15 @@ class RolePermissions {
       ...Permission.values,
     ],
     UserRole.admin: [
-      // User management (limited)
+      // Dashboard access
+      Permission.accessGodMode,
+      // User management
       Permission.viewUsers,
       Permission.editUsers,
+      Permission.deleteUsers,
       Permission.approveUsers,
       Permission.banUsers,
+      Permission.assignRoles,
       // Content management
       Permission.viewContent,
       Permission.editContent,
@@ -131,16 +135,20 @@ class RolePermissions {
       // Communication
       Permission.sendNotifications,
       Permission.manageCommunication,
-      // Config (view only)
+      // Config
       Permission.viewConfig,
+      Permission.editConfig,
       Permission.manageFeatures,
       Permission.manageUIDesign,
       Permission.manageForms,
-      // Audit
+      // Audit & Security
       Permission.viewAuditLog,
+      Permission.manageSecurity,
       Permission.viewAnalytics,
     ],
     UserRole.moderator: [
+      // Dashboard access
+      Permission.accessGodMode,
       // User management (view only)
       Permission.viewUsers,
       // Content management

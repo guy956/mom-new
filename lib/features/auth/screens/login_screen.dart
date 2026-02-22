@@ -272,8 +272,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       if (!mounted) return;
 
       if (isAdmin) {
-        // Admin login
-        context.read<AppState>().loginAsAdmin(email);
+        // Admin login - use real Firebase data for RBAC compatibility
+        context.read<AppState>().loginFromAuthData(userData);
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
