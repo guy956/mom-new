@@ -147,14 +147,18 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _retrySOS,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('נסי שוב', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Semantics(
+              label: 'ניסיון חוזר לשליחת בקשת SOS',
+              button: true,
+              child: ElevatedButton.icon(
+                onPressed: _retrySOS,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('נסי שוב', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ),
@@ -224,41 +228,46 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           const Text('במה צריכה עזרה?', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           ...(_sosCategories.map((cat) {
-            return GestureDetector(
-              onTap: () => _showSOSConfirmation(cat),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: (cat['color'] as Color).withValues(alpha: 0.3)),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (cat['color'] as Color).withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
+            return Semantics(
+              label: 'בקשת עזרה: ${cat['label']} - ${cat['desc']}',
+              button: true,
+              hint: 'לחצי לשליחת בקשת עזרה',
+              child: GestureDetector(
+                onTap: () => _showSOSConfirmation(cat),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: (cat['color'] as Color).withValues(alpha: 0.3)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: (cat['color'] as Color).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(cat['icon'] as IconData, color: cat['color'] as Color, size: 24),
                       ),
-                      child: Icon(cat['icon'] as IconData, color: cat['color'] as Color, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(cat['label'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text(cat['desc'], style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary)),
-                        ],
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(cat['label'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(cat['desc'], style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary)),
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textHint),
-                  ],
+                      Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textHint),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -298,32 +307,37 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           Icon(icon, size: 20, color: AppColors.info),
           const SizedBox(width: 10),
           Expanded(child: Text(name, style: const TextStyle(fontFamily: 'Heebo', fontSize: 14))),
-          GestureDetector(
-            onTap: () async {
-              final success = await launchUrl(Uri.parse('tel:$number'));
-              if (!success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('לא ניתן לחייג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.phone, size: 14, color: AppColors.info),
-                  const SizedBox(width: 4),
-                  Text(number, style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.info, fontSize: 13)),
-                ],
+          Semantics(
+            label: 'חייגי ל$name: $number',
+            button: true,
+            hint: 'לחצי לחיוג לשירותי חירום',
+            child: GestureDetector(
+              onTap: () async {
+                final success = await launchUrl(Uri.parse('tel:$number'));
+                if (!success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('לא ניתן לחייג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.phone, size: 14, color: AppColors.info),
+                    const SizedBox(width: 4),
+                    Text(number, style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.info, fontSize: 13)),
+                  ],
+                ),
               ),
             ),
           ),
@@ -425,16 +439,20 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          AppRouter.navigateTo(context, AppRouter.chat);
-                        },
-                        icon: const Icon(Icons.chat, size: 18),
-                        label: const Text('פתחי צ\'אט', style: TextStyle(fontFamily: 'Heebo')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Semantics(
+                        label: 'פתיחת צ\'אט הקהילה לתיאום עזרה',
+                        button: true,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            AppRouter.navigateTo(context, AppRouter.chat);
+                          },
+                          icon: const Icon(Icons.chat, size: 18),
+                          label: const Text('פתחי צ\'אט', style: TextStyle(fontFamily: 'Heebo')),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
                     ),
