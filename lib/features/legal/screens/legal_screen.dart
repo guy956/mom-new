@@ -1,5 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// MOMIT Legal Documents Screen
 /// Comprehensive legal framework: Privacy Policy, Terms of Service, Disclaimers
@@ -471,12 +473,44 @@ Widget _buildParagraph(String title, String content) {
       children: [
         Text(title, style: const TextStyle(fontFamily: 'Heebo', fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         const SizedBox(height: 8),
-        Text(
-          content,
-          style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textSecondary, height: 1.65),
+        RichText(
           textAlign: TextAlign.right,
+          text: _buildLinkifiedText(content),
         ),
       ],
     ),
   );
+}
+
+TextSpan _buildLinkifiedText(String text) {
+  final style = TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textSecondary, height: 1.65);
+  final linkStyle = TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.primary, height: 1.65, decoration: TextDecoration.underline);
+  final pattern = RegExp(r'(https?://[^\s]+)|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(\d{2,3}-\d{7})');
+  final spans = <InlineSpan>[];
+  int lastEnd = 0;
+
+  for (final match in pattern.allMatches(text)) {
+    if (match.start > lastEnd) {
+      spans.add(TextSpan(text: text.substring(lastEnd, match.start), style: style));
+    }
+    final matchText = match.group(0)!;
+    String uri;
+    if (matchText.startsWith('http')) {
+      uri = matchText;
+    } else if (matchText.contains('@')) {
+      uri = 'mailto:$matchText';
+    } else {
+      uri = 'tel:$matchText';
+    }
+    spans.add(TextSpan(
+      text: matchText,
+      style: linkStyle,
+      recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(uri)),
+    ));
+    lastEnd = match.end;
+  }
+  if (lastEnd < text.length) {
+    spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+  }
+  return TextSpan(children: spans);
 }

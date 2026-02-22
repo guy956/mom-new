@@ -153,7 +153,7 @@ class AccessibilityScreen extends StatelessWidget {
                           'זוהי תצוגה מקדימה של גודל הטקסט הנבחר. כך ייראה הטקסט באפליקציה.',
                           style: TextStyle(
                             fontFamily: 'Heebo',
-                            fontSize: 14 * a11y.fontScale,
+                            fontSize: 14,
                             fontWeight: a11y.boldText ? FontWeight.w600 : FontWeight.w400,
                             height: 1.5,
                           ),
@@ -358,8 +358,14 @@ class AccessibilityScreen extends StatelessWidget {
           HapticFeedback.lightImpact();
           onChanged(v);
         },
-        trackColor: WidgetStateProperty.all(AppColors.primary.withValues(alpha: 0.3)),
-        thumbColor: WidgetStateProperty.all(AppColors.primary),
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected)
+            ? AppColors.primary.withValues(alpha: 0.3)
+            : AppColors.border),
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected)
+            ? AppColors.primary
+            : AppColors.textHint),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );

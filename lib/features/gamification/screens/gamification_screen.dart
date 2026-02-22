@@ -71,7 +71,7 @@ class _GamificationScreenState extends State<GamificationScreen> with SingleTick
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => Navigator.pop(context),
@@ -356,7 +356,7 @@ class _GamificationScreenState extends State<GamificationScreen> with SingleTick
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(user['name'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
-                      Text('Level ${user['level']}', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                      Text('רמה ${user['level']}', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
                     ],
                   ),
                 ),
@@ -398,7 +398,7 @@ class _GamificationScreenState extends State<GamificationScreen> with SingleTick
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('שרה כהן (את!)', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
-                    Text('Level 12', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                    Text('רמה 12', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
                   ],
                 ),
               ),
