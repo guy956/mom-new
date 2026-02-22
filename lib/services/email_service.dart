@@ -123,6 +123,11 @@ class EmailService {
         return 'טיפ';
       case 'report':
         return 'דיווח';
+      case 'sos':
+      case 'sos_alert':
+        return 'התראת SOS דחופה';
+      case 'booking':
+        return 'בקשת תור למומחה';
       case 'user':
         return 'משתמש';
       case 'chat_group':
@@ -363,6 +368,12 @@ class EmailService {
         return _buildMarketplaceDetails(itemData);
       case 'expert':
         return _buildExpertDetails(itemData);
+      case 'booking':
+        return _buildBookingDetails(itemData);
+      case 'report':
+      case 'sos':
+      case 'sos_alert':
+        return _buildSOSDetails(itemData);
       default:
         return '';
     }
@@ -457,6 +468,61 @@ class EmailService {
         <span class="info-value">$phone</span>
       </div>
       <p style="margin-top: 15px; color: #666;">${_truncateText(bio, 150)}</p>
+    </div>
+    ''';
+  }
+
+  /// Build booking-specific details
+  String _buildBookingDetails(Map<String, dynamic> data) {
+    final expertName = data['expertName'] ?? 'לא צוין';
+    final date = data['date'] ?? 'לא צוין';
+    final time = data['time'] ?? 'לא צוין';
+    final userName = data['userName'] ?? 'לא צוין';
+
+    return '''
+    <div class="details-box">
+      <h3>📅 פרטי התור</h3>
+      <div class="info-row">
+        <span class="info-label">מומחה:</span>
+        <span class="info-value">$expertName</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">משתמשת:</span>
+        <span class="info-value">$userName</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">תאריך:</span>
+        <span class="info-value">$date</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">שעה:</span>
+        <span class="info-value">$time</span>
+      </div>
+    </div>
+    ''';
+  }
+
+  /// Build SOS alert-specific details
+  String _buildSOSDetails(Map<String, dynamic> data) {
+    final category = data['category'] ?? 'לא צוין';
+    final message = data['message'] ?? '';
+    final userName = data['userName'] ?? 'אנונימית';
+
+    return '''
+    <div class="details-box" style="border-right-color: #FF0000;">
+      <h3>🚨 פרטי התראת SOS</h3>
+      <div class="info-row">
+        <span class="info-label">קטגוריה:</span>
+        <span class="info-value" style="color: red; font-weight: bold;">$category</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">משתמשת:</span>
+        <span class="info-value">$userName</span>
+      </div>
+      <p style="margin-top: 15px; color: #666; background-color: #FFF0F0; padding: 15px; border-radius: 6px; border-right: 3px solid red;">
+        ${_truncateText(message, 300)}
+      </p>
+      <p style="color: red; font-weight: bold; margin-top: 10px;">⚠️ נדרש טיפול מיידי!</p>
     </div>
     ''';
   }
