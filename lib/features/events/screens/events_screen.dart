@@ -693,9 +693,12 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
 
   void _showCreateEventSheet() {
     final fs = Provider.of<FirestoreService>(context, listen: false);
+    final appState = Provider.of<AppState>(context, listen: false);
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final locationCtrl = TextEditingController();
+    final emailCtrl = TextEditingController(text: appState.currentUser?.email ?? '');
+    final phoneCtrl = TextEditingController(text: appState.currentUser?.phone ?? '');
     String selectedType = 'workshop';
     final otherTypeCtrl = TextEditingController();
 
@@ -842,6 +845,42 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                           ),
                         ],
                         const SizedBox(height: 24),
+                        const Text('פרטי קשר ליצירת קשר מהמנהלת', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: emailCtrl,
+                          textDirection: TextDirection.ltr,
+                          keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(fontFamily: 'Heebo'),
+                          decoration: InputDecoration(
+                            labelText: 'אימייל *',
+                            labelStyle: const TextStyle(fontFamily: 'Heebo'),
+                            hintText: 'example@email.com',
+                            hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            filled: true,
+                            fillColor: AppColors.surfaceVariant,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: phoneCtrl,
+                          textDirection: TextDirection.ltr,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(fontFamily: 'Heebo'),
+                          decoration: InputDecoration(
+                            labelText: 'טלפון *',
+                            labelStyle: const TextStyle(fontFamily: 'Heebo'),
+                            hintText: '05X-XXXXXXX',
+                            hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                            prefixIcon: const Icon(Icons.phone_outlined),
+                            filled: true,
+                            fillColor: AppColors.surfaceVariant,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -860,12 +899,28 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 return;
                               }
 
+                              // Validate email
+                              final emailValue = emailCtrl.text.trim();
+                              if (emailValue.isEmpty || !emailValue.contains('@')) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('נא להזין כתובת אימייל תקינה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                                );
+                                return;
+                              }
+
+                              // Validate Israeli phone number
+                              final phoneValue = phoneCtrl.text.trim();
+                              final phoneRegex = RegExp(r'^0(5[0-9])[- ]?\d{3}[- ]?\d{4}$');
+                              if (phoneValue.isEmpty || !phoneRegex.hasMatch(phoneValue)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('נא להזין מספר טלפון ישראלי תקין (05X-XXXXXXX)', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                                );
+                                return;
+                              }
+
                               // Get current user info for organizer
-                              final appState = Provider.of<AppState>(context, listen: false);
                               final user = appState.currentUser;
                               final userName = user?.fullName ?? '';
-                              final userEmail = user?.email ?? '';
-                              final userPhone = user?.phone ?? '';
                               final userId = user?.id ?? '';
 
                               // Create event in Firestore
@@ -875,8 +930,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 'location': locationCtrl.text.trim(),
                                 'type': selectedType,
                                 'organizer': userName,
-                                'creatorEmail': userEmail,
-                                'creatorPhone': userPhone,
+                                'creatorEmail': emailValue,
+                                'creatorPhone': phoneValue,
                                 'creatorId': userId,
                                 'creatorName': userName,
                                 'status': 'pending',

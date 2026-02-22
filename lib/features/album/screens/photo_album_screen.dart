@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/services/app_state.dart';
+import 'package:mom_connect/services/storage_service.dart';
 
 /// מסך אלבום תמונות - כל אמא יכולה ליצור אלבומים לכל ילד
 class PhotoAlbumScreen extends StatefulWidget {
@@ -684,14 +685,22 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
 
                               if (image != null && mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('מעלה תמונה...', style: TextStyle(fontFamily: 'Heebo')), duration: Duration(seconds: 1)),
+                                  const SnackBar(content: Text('מעלה תמונה...', style: TextStyle(fontFamily: 'Heebo')), duration: Duration(seconds: 3)),
                                 );
 
-                                await Future.delayed(const Duration(seconds: 1));
+                                final storageService = StorageService();
+                                final appState = Provider.of<AppState>(context, listen: false);
+                                final userId = appState.currentUser?.id ?? 'anonymous';
+                                final imageUrl = await storageService.uploadImage(
+                                  filePath: image.path,
+                                  folder: 'albums/$userId/$albumKey',
+                                  customFileName: image.name,
+                                );
 
                                 final photoData = {
                                   'path': image.path,
                                   'name': image.name,
+                                  'url': imageUrl,
                                   'uploadedBy': _currentUserName,
                                   'uploadedAt': DateTime.now().toIso8601String(),
                                 };
@@ -761,7 +770,10 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
               onTap: () {
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('התמונה נשמרה לגלריה! 📸', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success),
+                  const SnackBar(
+                    content: Text('שמירה לגלריה תהיה זמינה בקרוב', style: TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: AppColors.info,
+                  ),
                 );
               },
             ),
@@ -800,25 +812,16 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
       return;
     }
 
-    // Simulate export to gallery
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('מייצא ${photos.length} תמונות לגלריית הטלפון...', style: const TextStyle(fontFamily: 'Heebo')),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 2),
+        content: Text(
+          'ייצוא לגלריה יהיה זמין בקרוב (${photos.length} תמונות באלבום)',
+          style: const TextStyle(fontFamily: 'Heebo'),
+        ),
+        backgroundColor: AppColors.info,
+        duration: const Duration(seconds: 3),
       ),
     );
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('האלבום "${album['title']}" יוצא בהצלחה לגלריה! 📁', style: const TextStyle(fontFamily: 'Heebo')),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    });
   }
 
   void _showCreateAlbumSheet() {

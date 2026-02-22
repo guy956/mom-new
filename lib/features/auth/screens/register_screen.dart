@@ -344,8 +344,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d-]'))],
           validator: (v) {
             if (v == null || v.isEmpty) return 'מספר טלפון הוא שדה חובה';
-            final digitsOnly = v.replaceAll(RegExp(r'[^0-9]'), '');
-            if (digitsOnly.length < 9 || digitsOnly.length > 10) return 'מספר טלפון לא תקין';
+            final cleaned = v.replaceAll(RegExp(r'[^0-9]'), '');
+            final phoneRegex = RegExp(r'^0?(5[0-9])\d{7}$');
+            if (!phoneRegex.hasMatch(cleaned)) {
+              return 'מספר טלפון ישראלי לא תקין (05X-XXXXXXX)';
+            }
             return null;
           },
         ),
@@ -590,8 +593,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return false;
         }
         final digits = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
-        if (digits.length < 9) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('מספר טלפון לא תקין'), backgroundColor: AppColors.error));
+        final phoneRegex = RegExp(r'^0?(5[0-9])\d{7}$');
+        if (!phoneRegex.hasMatch(digits)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('מספר טלפון ישראלי לא תקין (05X-XXXXXXX)'), backgroundColor: AppColors.error));
           return false;
         }
         return true;

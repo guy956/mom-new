@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/color_config.dart';
@@ -8,6 +10,8 @@ import 'package:mom_connect/models/user_model.dart';
 import 'package:mom_connect/features/auth/screens/welcome_screen.dart';
 import 'package:mom_connect/services/auth_service.dart';
 import 'package:mom_connect/services/app_state.dart';
+import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/tracking_service.dart';
 import 'package:mom_connect/services/dynamic_config_service.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +33,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _user = UserModel.demo();
+    // Will be set from AppState in didChangeDependencies
+    _user = UserModel(id: '', email: '', fullName: '');
   }
 
   bool _didSyncChildren = false;
@@ -56,29 +61,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           childMap.putIfAbsent(tc.id, () => tc);
         }
         _user = appUser.copyWith(
-          stats: appUser.stats.postsCount > 0 ? appUser.stats : UserStats(
-            postsCount: 45,
-            commentsCount: 156,
-            likesReceived: 892,
-            rating: 4.8,
-            followersCount: 234,
-            followingCount: 156,
-          ),
-          bio: appUser.bio ?? 'אמא מקסימה בקהילת MOMIT',
           children: childMap.values.toList(),
         );
       } else {
         _user = appUser.copyWith(
-          stats: appUser.stats.postsCount > 0 ? appUser.stats : UserStats(
-            postsCount: 45,
-            commentsCount: 156,
-            likesReceived: 892,
-            rating: 4.8,
-            followersCount: 234,
-            followingCount: 156,
-          ),
-          bio: appUser.bio ?? 'אמא מקסימה בקהילת MOMIT',
-          children: _user.children.isEmpty ? UserModel.demo().children : _user.children,
+          children: appUser.children,
         );
       }
     }
@@ -495,37 +482,97 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildPostsTab() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(2),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-      ),
-      itemCount: 9,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('פוסט ${index + 1}', style: const TextStyle(fontFamily: 'Heebo')),
-                backgroundColor: AppColors.primary,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 1),
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    final currentUserId = _user.id;
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: firestoreService.postsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final allPosts = snapshot.data ?? [];
+        final userPosts = allPosts.where((p) => p['authorId'] == currentUserId).toList();
+
+        if (userPosts.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.grid_on_rounded, size: 50, color: AppColors.primary),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'עדיין לא פרסמת פוסטים',
+                  style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'הפוסטים שלך יופיעו כאן',
+                  style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textHint),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemCount: userPosts.length,
+          itemBuilder: (context, index) {
+            final post = PostModel.fromJson(userPosts[index]);
+            final hasImage = post.imageUrls.isNotEmpty;
+
+            return GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(post.content.length > 40 ? '${post.content.substring(0, 40)}...' : post.content, style: const TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: AppColors.primary,
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: Container(
+                color: AppColors.surfaceVariant,
+                child: hasImage
+                    ? Image.network(
+                        post.imageUrls.first,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppColors.surfaceVariant,
+                          child: const Icon(Icons.image, color: AppColors.textHint),
+                        ),
+                      )
+                    : Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            post.content.length > 60 ? '${post.content.substring(0, 60)}...' : post.content,
+                            style: const TextStyle(fontFamily: 'Heebo', fontSize: 11, color: AppColors.textSecondary),
+                            textAlign: TextAlign.center,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
               ),
             );
           },
-          child: Container(
-            color: AppColors.surfaceVariant,
-            child: Image.network(
-              'https://picsum.photos/200?random=$index',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppColors.surfaceVariant,
-                child: const Icon(Icons.image, color: AppColors.textHint),
-              ),
-            ),
-          ),
         );
       },
     );
@@ -732,40 +779,139 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Widget _buildSavedTab() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(2),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-      ),
-      itemCount: 6,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('פוסט שמור ${index + 1}', style: const TextStyle(fontFamily: 'Heebo')),
-                backgroundColor: AppColors.accent,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 1),
+    final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+    final currentUserId = _user.id;
+
+    return FutureBuilder<Set<String>>(
+      future: currentUserId.isNotEmpty ? firestoreService.getSavedItemIds(currentUserId) : Future.value(<String>{}),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final savedIds = snapshot.data ?? {};
+
+        if (savedIds.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.bookmark_outline_rounded, size: 50, color: AppColors.primary),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'אין פריטים שמורים',
+                  style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'פריטים ששמרת יופיעו כאן',
+                  style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textHint),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Show saved items as a simple list of IDs for now
+        final savedList = savedIds.toList();
+        return GridView.builder(
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemCount: savedList.length,
+          itemBuilder: (context, index) {
+            return GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('פוסט שמור ${index + 1}', style: const TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: AppColors.accent,
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
+              child: Container(
+                color: AppColors.surfaceVariant,
+                child: Center(
+                  child: Icon(Icons.bookmark_rounded, color: AppColors.primary.withValues(alpha: 0.5), size: 30),
+                ),
               ),
             );
           },
-          child: Container(
-            color: AppColors.surfaceVariant,
-            child: Image.network(
-              'https://picsum.photos/200?random=${index + 10}',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: AppColors.surfaceVariant,
-                child: const Icon(Icons.bookmark, color: AppColors.textHint),
-              ),
-            ),
-          ),
         );
       },
     );
+  }
+
+  Future<void> _pickAndUploadProfileImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('מעלה תמונה...', style: TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.info,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final appState = context.read<AppState>();
+      final userId = appState.currentUser?.id ?? 'anonymous';
+      final storageService = StorageService();
+      final downloadUrl = await storageService.uploadImage(
+        filePath: image.path,
+        folder: 'profile_images/$userId',
+      );
+
+      // Update Firestore
+      final firestoreService = context.read<FirestoreService>();
+      await firestoreService.updateUser(userId, {'profileImage': downloadUrl});
+
+      // Update local state
+      appState.updateUserProfile(profileImage: downloadUrl);
+      setState(() {
+        _user = _user.copyWith(profileImage: downloadUrl);
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('התמונה עודכנה בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בהעלאת התמונה: $e', style: const TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _showProfileImageOptions() {
@@ -793,9 +939,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 title: const Text('בחירה מהגלריה', style: TextStyle(fontFamily: 'Heebo')),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('פתיחת הגלריה...', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
-                  );
+                  _pickAndUploadProfileImage(ImageSource.gallery);
                 },
               ),
               ListTile(
@@ -803,20 +947,47 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 title: const Text('צילום תמונה', style: TextStyle(fontFamily: 'Heebo')),
                 onTap: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('פתיחת המצלמה...', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
-                  );
+                  _pickAndUploadProfileImage(ImageSource.camera);
                 },
               ),
               if (_user.profileImage != null)
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: AppColors.error),
                   title: const Text('הסרת תמונה', style: TextStyle(fontFamily: 'Heebo', color: AppColors.error)),
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('התמונה הוסרה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
-                    );
+                    try {
+                      final appState = context.read<AppState>();
+                      final userId = appState.currentUser?.id ?? 'anonymous';
+
+                      // Remove from Firestore
+                      final firestoreService = context.read<FirestoreService>();
+                      await firestoreService.updateUser(userId, {'profileImage': null});
+
+                      // Update local state
+                      appState.updateUserProfile(profileImage: '');
+                      setState(() {
+                        _user = _user.copyWith(profileImage: null);
+                      });
+
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('התמונה הוסרה', style: TextStyle(fontFamily: 'Heebo')),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('שגיאה בהסרת התמונה: $e', style: const TextStyle(fontFamily: 'Heebo')),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   },
                 ),
               const SizedBox(height: 20),
@@ -860,15 +1031,67 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     ),
                     const Text('עריכת פרופיל', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('הפרופיל עודכן בהצלחה! ✓', style: TextStyle(fontFamily: 'Heebo')),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                      onPressed: () async {
+                        final appState = context.read<AppState>();
+                        final userId = appState.currentUser?.id;
+                        if (userId == null) {
+                          Navigator.pop(ctx);
+                          return;
+                        }
+
+                        final newName = nameCtrl.text.trim();
+                        final newBio = bioCtrl.text.trim();
+                        final newCity = cityCtrl.text.trim();
+                        final newPhone = phoneCtrl.text.trim();
+
+                        try {
+                          // Save to Firestore
+                          final firestoreService = context.read<FirestoreService>();
+                          await firestoreService.updateUser(userId, {
+                            'fullName': newName,
+                            'bio': newBio.isEmpty ? null : newBio,
+                            'city': newCity.isEmpty ? null : newCity,
+                            'phone': newPhone.isEmpty ? null : newPhone,
+                          });
+
+                          // Update local AppState
+                          appState.updateUserProfile(
+                            fullName: newName,
+                            bio: newBio.isEmpty ? null : newBio,
+                            city: newCity.isEmpty ? null : newCity,
+                            phone: newPhone.isEmpty ? null : newPhone,
+                          );
+
+                          // Update local _user for immediate UI refresh
+                          setState(() {
+                            _user = _user.copyWith(
+                              fullName: newName,
+                              bio: newBio.isEmpty ? null : newBio,
+                              city: newCity.isEmpty ? null : newCity,
+                              phone: newPhone.isEmpty ? null : newPhone,
+                            );
+                          });
+
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('הפרופיל עודכן בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (e) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('שגיאה בשמירת הפרופיל: $e', style: const TextStyle(fontFamily: 'Heebo')),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
                       },
                       child: const Text('שמור', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.primary)),
                     ),
@@ -994,9 +1217,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       }),
                       _buildSettingsTile(Icons.privacy_tip_outlined, 'פרטיות', onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('הגדרות פרטיות', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
-                        );
+                        _showPrivacySettingsSheet();
                       }),
                     ]),
                     _buildSettingsSection('התראות', [
@@ -1264,6 +1485,272 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 const SizedBox(height: 12),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPrivacySettingsSheet() {
+    HapticFeedback.mediumImpact();
+    final appState = context.read<AppState>();
+    final userId = appState.currentUser?.id;
+    if (userId == null) return;
+
+    // Initialize from current user's privacy settings
+    bool isProfilePublic = _user.privacy.profileVisibility == 'public';
+    bool allowMessages = _user.privacy.allowMessages;
+    bool showOnlineStatus = _user.privacy.showOnlineStatus;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint)),
+                    ),
+                    const Text('הגדרות פרטיות', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          final newPrivacy = PrivacySettings(
+                            profileVisibility: isProfilePublic ? 'public' : 'private',
+                            childrenVisibility: 'private', // Always private
+                            postsVisibility: _user.privacy.postsVisibility,
+                            allowMessages: allowMessages,
+                            showOnlineStatus: showOnlineStatus,
+                          );
+
+                          // Save to Firestore
+                          final firestoreService = context.read<FirestoreService>();
+                          await firestoreService.updateUser(userId, {
+                            'privacy': newPrivacy.toJson(),
+                          });
+
+                          // Update local state
+                          setState(() {
+                            _user = _user.copyWith(privacy: newPrivacy);
+                          });
+
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('הגדרות הפרטיות עודכנו בהצלחה!', style: TextStyle(fontFamily: 'Heebo')),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (e) {
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('שגיאה בשמירת הגדרות פרטיות: $e', style: const TextStyle(fontFamily: 'Heebo')),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('שמור', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.primary)),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    // Profile visibility
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.visibility_outlined, color: AppColors.primary),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('נראות פרופיל', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 15)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isProfilePublic ? 'פרופיל ציבורי - כולן יכולות לראות' : 'פרופיל פרטי - רק עוקבות יכולות לראות',
+                                  style: const TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: isProfilePublic,
+                            thumbColor: WidgetStateProperty.all(AppColors.primary),
+                            trackColor: WidgetStateProperty.all(
+                              isProfilePublic ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border,
+                            ),
+                            onChanged: (value) {
+                              setSheetState(() => isProfilePublic = value);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Child tracking visibility (always private, read-only)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.child_care_rounded, color: AppColors.primary),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('נראות מעקב ילדים', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 15)),
+                                SizedBox(height: 2),
+                                Text(
+                                  'תמיד פרטי - מידע על הילדים שלך נשאר פרטי ומוגן',
+                                  style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.lock_rounded, size: 14, color: AppColors.success),
+                                const SizedBox(width: 4),
+                                Text('פרטי', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Allow messages
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.message_outlined, color: AppColors.primary),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('אפשר הודעות', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 15)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  allowMessages ? 'כולן יכולות לשלוח לך הודעות' : 'רק עוקבות יכולות לשלוח לך הודעות',
+                                  style: const TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: allowMessages,
+                            thumbColor: WidgetStateProperty.all(AppColors.primary),
+                            trackColor: WidgetStateProperty.all(
+                              allowMessages ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border,
+                            ),
+                            onChanged: (value) {
+                              setSheetState(() => allowMessages = value);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Show online status
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.circle, color: AppColors.success, size: 20),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('הצג סטטוס מחוברת', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 15)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  showOnlineStatus ? 'אחרות יכולות לראות שאת מחוברת' : 'הסטטוס שלך מוסתר',
+                                  style: const TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: showOnlineStatus,
+                            thumbColor: WidgetStateProperty.all(AppColors.primary),
+                            trackColor: WidgetStateProperty.all(
+                              showOnlineStatus ? AppColors.primary.withValues(alpha: 0.5) : AppColors.border,
+                            ),
+                            onChanged: (value) {
+                              setSheetState(() => showOnlineStatus = value);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

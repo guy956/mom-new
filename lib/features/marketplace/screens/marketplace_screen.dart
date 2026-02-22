@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/storage_service.dart';
@@ -20,6 +22,29 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final Set<String> _savedProductIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedItems();
+  }
+
+  Future<void> _loadSavedItems() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = appState.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    try {
+      final fs = Provider.of<FirestoreService>(context, listen: false);
+      final savedIds = await fs.getSavedItemIds(userId);
+      if (mounted) {
+        setState(() {
+          _savedProductIds.addAll(savedIds);
+        });
+      }
+    } catch (e) {
+      debugPrint('[Marketplace] Error loading saved items: $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -587,14 +612,29 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _toggleSaveProduct(String id, String title) {
     if (id.isEmpty) return;
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = appState.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final wasSaved = _savedProductIds.contains(id);
     setState(() {
-      if (_savedProductIds.contains(id)) {
+      if (wasSaved) {
         _savedProductIds.remove(id);
       } else {
         _savedProductIds.add(id);
       }
     });
-    final isSaved = _savedProductIds.contains(id);
+    final isSaved = !wasSaved;
+    // Persist to Firestore
+    if (isSaved) {
+      fs.saveItem(userId, id).catchError((e) {
+        debugPrint('[Marketplace] Error saving item: $e');
+      });
+    } else {
+      fs.unsaveItem(userId, id).catchError((e) {
+        debugPrint('[Marketplace] Error unsaving item: $e');
+      });
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(isSaved ? 'נשמר בהצלחה!' : 'הוסר מהשמורים',
@@ -1063,18 +1103,80 @@ class _ProductDetailsSheet extends StatelessWidget {
                       ],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('הודעה נשלחה לתורמת!',
-                                style: TextStyle(fontFamily: 'Heebo')),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
+                      onPressed: () async {
+                        final creatorId = (item['creatorId'] ?? '').toString();
+                        final creatorName = (item['creatorName'] ?? seller).toString();
+                        final contactPhone = (item['creatorPhone'] ?? contact).toString();
+                        final appState = Provider.of<AppState>(context, listen: false);
+                        final fs = Provider.of<FirestoreService>(context, listen: false);
+                        final currentUser = appState.currentUser;
+
+                        // If the donor provided a phone number, offer WhatsApp or DM
+                        if (contactPhone.isNotEmpty) {
+                          final whatsappUrl = Uri.parse(
+                            'https://wa.me/${contactPhone.replaceAll(RegExp(r'[^0-9+]'), '')}?text=${Uri.encodeComponent('שלום, ראיתי את הפריט "$title" באפליקציית MOMIT ואשמח לשמוע עוד פרטים')}',
+                          );
+                          if (await canLaunchUrl(whatsappUrl)) {
+                            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+                            if (context.mounted) Navigator.pop(context);
+                            return;
+                          }
+                        }
+
+                        // Fallback: create a DM conversation
+                        if (creatorId.isNotEmpty) {
+                          try {
+                            if (currentUser == null || currentUser.id.isEmpty) return;
+
+                            await fs.createDirectMessage(
+                              fromUserId: currentUser.id,
+                              fromUserName: currentUser.fullName,
+                              toUserId: creatorId,
+                              toUserName: creatorName,
+                            );
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('שיחה נוצרה עם $creatorName! בדקי בהודעות',
+                                      style: const TextStyle(fontFamily: 'Heebo')),
+                                  backgroundColor: AppColors.success,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('שגיאה ביצירת שיחה: $e',
+                                      style: const TextStyle(fontFamily: 'Heebo')),
+                                  backgroundColor: AppColors.error,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                            }
+                          }
+                        } else {
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('לא ניתן ליצור קשר עם התורמת כרגע',
+                                    style: TextStyle(fontFamily: 'Heebo')),
+                                backgroundColor: AppColors.warning,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                          }
+                        }
                       },
                       icon: const Icon(
                           Icons.chat_bubble_outline_rounded,
@@ -1123,16 +1225,20 @@ class _ProductDetailsSheet extends StatelessWidget {
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('הקישור הועתק!',
-                              style: TextStyle(fontFamily: 'Heebo')),
-                          backgroundColor: AppColors.primary,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
+                    onTap: () async {
+                      final shareText = StringBuffer();
+                      shareText.writeln(title);
+                      if (description.isNotEmpty) {
+                        shareText.writeln(description);
+                      }
+                      if (location.isNotEmpty) {
+                        shareText.writeln('מיקום: $location');
+                      }
+                      final priceLabel = (price == 0 || price == null) ? 'למסירה חינם' : '$price ש"ח';
+                      shareText.writeln(priceLabel);
+                      shareText.writeln('מתוך אפליקציית MOMIT');
+                      await SharePlus.instance.share(
+                        ShareParams(text: shareText.toString()),
                       );
                     },
                     borderRadius: BorderRadius.circular(14),

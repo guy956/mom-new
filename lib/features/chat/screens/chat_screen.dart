@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/widgets/empty_state_widgets.dart';
-import 'package:mom_connect/core/widgets/loading_widgets.dart';
 import 'package:mom_connect/core/widgets/dialog_widgets.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/app_state.dart';
 
-/// מסך צ'אט - עם שיחות, קבוצות וחיפוש פונקציונלי
+/// Chat screen with DMs, groups, and search - all connected to Firestore
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -23,97 +24,6 @@ class _ChatScreenState extends State<ChatScreen>
   String _searchQuery = '';
   bool _isSearching = false;
 
-  // Demo conversations
-  final List<Map<String, dynamic>> _conversations = [
-    {
-      'id': '1',
-      'name': 'מיכל לוין',
-      'avatar': 'https://i.pravatar.cc/150?img=5',
-      'lastMessage': 'תודה רבה על העצה, עזרת לי מאוד',
-      'time': 'לפני 5 דק\'',
-      'unread': 2,
-      'isOnline': true,
-      'isGroup': false,
-    },
-    {
-      'id': '2',
-      'name': 'נועה ישראלי',
-      'avatar': 'https://i.pravatar.cc/150?img=9',
-      'lastMessage': 'את יכולה לשלוח לי את הלינק?',
-      'time': 'לפני 15 דק\'',
-      'unread': 0,
-      'isOnline': true,
-      'isGroup': false,
-    },
-    {
-      'id': '3',
-      'name': 'שרה כהן',
-      'avatar': 'https://i.pravatar.cc/150?img=16',
-      'lastMessage': 'נתראה מחר באירוע! 🎉',
-      'time': 'לפני שעה',
-      'unread': 1,
-      'isOnline': false,
-      'isGroup': false,
-    },
-    {
-      'id': '4',
-      'name': 'רחלי אברהם',
-      'avatar': 'https://i.pravatar.cc/150?img=20',
-      'lastMessage': 'הגעתי עכשיו עם התינוק, תבואי!',
-      'time': 'לפני 2 שעות',
-      'unread': 0,
-      'isOnline': false,
-      'isGroup': false,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _groups = [
-    {
-      'id': 'g1',
-      'name': 'אמהות ת"א מרכז',
-      'avatar': null,
-      'emoji': '🏙️',
-      'lastMessage': 'מיכל: מישהי מכירה גן טוב בקרבת כיכר רבין?',
-      'time': 'לפני 10 דק\'',
-      'unread': 5,
-      'members': 48,
-      'isGroup': true,
-    },
-    {
-      'id': 'g2',
-      'name': 'הריון ולידה',
-      'avatar': null,
-      'emoji': '🤰',
-      'lastMessage': 'נועה: בהצלחה מחר! מחכות לבשורות טובות',
-      'time': 'לפני 30 דק\'',
-      'unread': 12,
-      'members': 156,
-      'isGroup': true,
-    },
-    {
-      'id': 'g3',
-      'name': 'מתכונים לתינוקות',
-      'avatar': null,
-      'emoji': '🍼',
-      'lastMessage': 'שרה: ניסיתי את המרק דלעת - מעולה!',
-      'time': 'לפני 3 שעות',
-      'unread': 0,
-      'members': 89,
-      'isGroup': true,
-    },
-    {
-      'id': 'g4',
-      'name': 'טיולים עם ילדים',
-      'avatar': null,
-      'emoji': '🌳',
-      'lastMessage': 'רחלי: מישהי הייתה בשמורת עין גדי עם תינוק?',
-      'time': 'אתמול',
-      'unread': 0,
-      'members': 67,
-      'isGroup': true,
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -127,15 +37,21 @@ class _ChatScreenState extends State<ChatScreen>
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _allChats =>
-      [..._conversations, ..._groups]..sort((a, b) => 
-        (b['unread'] as int).compareTo(a['unread'] as int));
+  String get _currentUserId {
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.currentUser?.id ?? '';
+  }
+
+  String get _currentUserName {
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.currentUser?.fullName ?? 'משתמשת';
+  }
 
   List<Map<String, dynamic>> _filterList(List<Map<String, dynamic>> list) {
     if (_searchQuery.isEmpty) return list;
     return list.where((item) {
-      final name = (item['name'] as String).toLowerCase();
-      final msg = (item['lastMessage'] as String).toLowerCase();
+      final name = (item['name'] ?? '').toString().toLowerCase();
+      final msg = (item['lastMessage'] ?? '').toString().toLowerCase();
       final query = _searchQuery.toLowerCase();
       return name.contains(query) || msg.contains(query);
     }).toList();
@@ -145,31 +61,22 @@ class _ChatScreenState extends State<ChatScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          // Simulate refresh - in real app would refresh from server
-          await Future.delayed(const Duration(milliseconds: 500));
-          setState(() {});
-          AppSnackbar.success(context, 'הרשימה עודכנה');
-        },
-        color: AppColors.primary,
-        child: Column(
-          children: [
-            _buildHeader(),
-            if (_isSearching) _buildSearchBar(),
-            _buildTabs(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAllTab(),
-                  _buildGroupsTab(),
-                  _buildPrivateTab(),
-                ],
-              ),
+      body: Column(
+        children: [
+          _buildHeader(),
+          if (_isSearching) _buildSearchBar(),
+          _buildTabs(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAllTab(),
+                _buildGroupsTab(),
+                _buildPrivateTab(),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showNewChatSheet(),
@@ -267,50 +174,87 @@ class _ChatScreenState extends State<ChatScreen>
         ),
         indicatorColor: AppColors.primary,
         indicatorWeight: 3,
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('הכל'),
-                if (_allChats.where((c) => (c['unread'] as int) > 0).isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${_allChats.fold<int>(0, (sum, c) => sum + (c['unread'] as int))}',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const Tab(text: 'קבוצות'),
-          const Tab(text: 'פרטי'),
+        tabs: const [
+          Tab(text: 'הכל'),
+          Tab(text: 'קבוצות'),
+          Tab(text: 'פרטי'),
         ],
       ),
     );
   }
 
+  // ── All Tab: merges DMs + Groups from Firestore ──
+
   Widget _buildAllTab() {
-    final filtered = _filterList(_allChats);
-    if (filtered.isEmpty && _searchQuery.isNotEmpty) {
-      return _buildNoResults();
-    }
-    if (_allChats.isEmpty) {
-      return _buildEmptyState();
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final userId = _currentUserId;
+    if (userId.isEmpty) return _buildEmptyState();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: fs.dmConversationsStream(userId),
+      builder: (context, dmSnap) {
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: fs.chatGroupsStream,
+          builder: (context, groupSnap) {
+            if (dmSnap.connectionState == ConnectionState.waiting &&
+                groupSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final dms = (dmSnap.data ?? []).map((dm) {
+              final names = Map<String, dynamic>.from(dm['participantNames'] ?? {});
+              final avatars = Map<String, dynamic>.from(dm['participantAvatars'] ?? {});
+              final otherUserId = (List<String>.from(dm['participants'] ?? []))
+                  .firstWhere((p) => p != userId, orElse: () => '');
+              return <String, dynamic>{
+                'id': dm['id'],
+                'name': names[otherUserId] ?? 'משתמשת',
+                'avatar': avatars[otherUserId],
+                'lastMessage': dm['lastMessage'] ?? '',
+                'time': _formatTimestamp(dm['lastMessageAt']),
+                'unread': 0,
+                'isOnline': false,
+                'isGroup': false,
+                'conversationId': dm['id'],
+              };
+            }).toList();
+
+            final groups = (groupSnap.data ?? [])
+                .where((g) => g['status'] == 'approved')
+                .map((g) => <String, dynamic>{
+                      'id': g['id'] ?? '',
+                      'name': g['name'] ?? 'קבוצה',
+                      'avatar': null,
+                      'emoji': g['emoji'] ?? '👥',
+                      'lastMessage': g['lastMessage'] ?? g['description'] ?? '',
+                      'time': _formatTimestamp(g['lastMessageAt'] ?? g['updatedAt']),
+                      'unread': 0,
+                      'members': g['memberCount'] ?? 0,
+                      'isGroup': true,
+                    })
+                .toList();
+
+            final all = [...dms, ...groups];
+            final filtered = _filterList(all);
+
+            if (filtered.isEmpty && _searchQuery.isNotEmpty) {
+              return _buildNoResults();
+            }
+            if (all.isEmpty) {
+              return _buildEmptyState();
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: filtered.length,
+              itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+            );
+          },
+        );
+      },
     );
   }
+
+  // ── Groups Tab: from Firestore ──
 
   Widget _buildGroupsTab() {
     final fs = Provider.of<FirestoreService>(context, listen: false);
@@ -322,15 +266,15 @@ class _ChatScreenState extends State<ChatScreen>
         }
         final groups = (snapshot.data ?? [])
             .where((g) => g['status'] == 'approved')
-            .map((g) => {
+            .map((g) => <String, dynamic>{
                   'id': g['id'] ?? '',
                   'name': g['name'] ?? 'קבוצה',
                   'avatar': null,
                   'emoji': g['emoji'] ?? '👥',
-                  'lastMessage': g['description'] ?? '',
-                  'time': '',
+                  'lastMessage': g['lastMessage'] ?? g['description'] ?? '',
+                  'time': _formatTimestamp(g['lastMessageAt'] ?? g['updatedAt']),
                   'unread': 0,
-                  'members': g['membersCount'] ?? 0,
+                  'members': g['memberCount'] ?? 0,
                   'isGroup': true,
                 })
             .toList();
@@ -355,27 +299,61 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  // ── Private Tab: DMs from Firestore ──
+
   Widget _buildPrivateTab() {
-    final filtered = _filterList(_conversations);
-    if (filtered.isEmpty && _searchQuery.isNotEmpty) {
-      return _buildNoResults();
-    }
-    if (_conversations.isEmpty) {
-      return _buildEmptyState(isPrivate: true);
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final userId = _currentUserId;
+    if (userId.isEmpty) return _buildEmptyState(isPrivate: true);
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: fs.dmConversationsStream(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final conversations = (snapshot.data ?? []).map((dm) {
+          final names = Map<String, dynamic>.from(dm['participantNames'] ?? {});
+          final avatars = Map<String, dynamic>.from(dm['participantAvatars'] ?? {});
+          final otherUserId = (List<String>.from(dm['participants'] ?? []))
+              .firstWhere((p) => p != userId, orElse: () => '');
+          return <String, dynamic>{
+            'id': dm['id'],
+            'name': names[otherUserId] ?? 'משתמשת',
+            'avatar': avatars[otherUserId],
+            'lastMessage': dm['lastMessage'] ?? '',
+            'time': _formatTimestamp(dm['lastMessageAt']),
+            'unread': 0,
+            'isOnline': false,
+            'isGroup': false,
+            'conversationId': dm['id'],
+          };
+        }).toList();
+
+        final filtered = _filterList(conversations);
+        if (filtered.isEmpty && _searchQuery.isNotEmpty) {
+          return _buildNoResults();
+        }
+        if (conversations.isEmpty) {
+          return _buildEmptyState(isPrivate: true);
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: filtered.length,
+          itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+        );
+      },
     );
   }
 
+  // ── Shared tile builder ──
+
   Widget _buildChatTile(Map<String, dynamic> chat) {
-    final isGroup = chat['isGroup'] as bool;
-    final unread = chat['unread'] as int;
+    final isGroup = chat['isGroup'] == true;
+    final unread = (chat['unread'] ?? 0) as int;
 
     return Dismissible(
-      key: Key(chat['id']),
+      key: Key(chat['id'] ?? UniqueKey().toString()),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerLeft,
@@ -394,25 +372,16 @@ class _ChatScreenState extends State<ChatScreen>
         );
       },
       onDismissed: (_) {
-        setState(() {
-          if (isGroup) {
-            _groups.removeWhere((g) => g['id'] == chat['id']);
-          } else {
-            _conversations.removeWhere((c) => c['id'] == chat['id']);
-          }
-        });
+        final fs = Provider.of<FirestoreService>(context, listen: false);
+        if (isGroup) {
+          fs.deleteChatGroup(chat['id']);
+        } else {
+          fs.deleteDirectMessage(chat['id']);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('השיחה עם ${chat['name']} נמחקה', style: const TextStyle(fontFamily: 'Heebo')),
-            action: SnackBarAction(label: 'ביטול', onPressed: () {
-              setState(() {
-                if (isGroup) {
-                  _groups.add(chat);
-                } else {
-                  _conversations.add(chat);
-                }
-              });
-            }),
+            content: Text('השיחה עם ${chat['name']} נמחקה',
+                style: const TextStyle(fontFamily: 'Heebo')),
           ),
         );
       },
@@ -421,7 +390,9 @@ class _ChatScreenState extends State<ChatScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: unread > 0 ? AppColors.primary.withValues(alpha: 0.04) : Colors.transparent,
+            color: unread > 0
+                ? AppColors.primary.withValues(alpha: 0.04)
+                : Colors.transparent,
           ),
           child: Row(
             children: [
@@ -430,25 +401,34 @@ class _ChatScreenState extends State<ChatScreen>
                 children: [
                   if (isGroup)
                     Container(
-                      width: 52, height: 52,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Center(child: Text(chat['emoji'] ?? '👥', style: const TextStyle(fontSize: 24))),
+                      child: Center(
+                          child: Text(chat['emoji'] ?? '👥',
+                              style: const TextStyle(fontSize: 24))),
                     )
                   else
                     CircleAvatar(
                       radius: 26,
-                      backgroundImage: chat['avatar'] != null ? NetworkImage(chat['avatar']) : null,
+                      backgroundImage: chat['avatar'] != null
+                          ? NetworkImage(chat['avatar'])
+                          : null,
                       backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                      child: chat['avatar'] == null ? const Icon(Icons.person, color: AppColors.primary) : null,
+                      child: chat['avatar'] == null
+                          ? const Icon(Icons.person, color: AppColors.primary)
+                          : null,
                     ),
                   if (!isGroup && chat['isOnline'] == true)
                     Positioned(
-                      bottom: 2, right: 2,
+                      bottom: 2,
+                      right: 2,
                       child: Container(
-                        width: 14, height: 14,
+                        width: 14,
+                        height: 14,
                         decoration: BoxDecoration(
                           color: AppColors.success,
                           shape: BoxShape.circle,
@@ -468,21 +448,26 @@ class _ChatScreenState extends State<ChatScreen>
                       children: [
                         Expanded(
                           child: Text(
-                            chat['name'],
+                            chat['name'] ?? '',
                             style: TextStyle(
                               fontFamily: 'Heebo',
-                              fontWeight: unread > 0 ? FontWeight.bold : FontWeight.w600,
+                              fontWeight: unread > 0
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
                               fontSize: 15,
                             ),
                           ),
                         ),
                         Text(
-                          chat['time'],
+                          chat['time'] ?? '',
                           style: TextStyle(
                             fontFamily: 'Heebo',
                             fontSize: 12,
-                            color: unread > 0 ? AppColors.primary : AppColors.textHint,
-                            fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
+                            color: unread > 0
+                                ? AppColors.primary
+                                : AppColors.textHint,
+                            fontWeight:
+                                unread > 0 ? FontWeight.w600 : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -492,36 +477,46 @@ class _ChatScreenState extends State<ChatScreen>
                       children: [
                         Expanded(
                           child: Text(
-                            chat['lastMessage'],
+                            chat['lastMessage'] ?? '',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontFamily: 'Heebo',
                               fontSize: 13,
-                              color: unread > 0 ? AppColors.textPrimary : AppColors.textSecondary,
-                              fontWeight: unread > 0 ? FontWeight.w500 : FontWeight.normal,
+                              color: unread > 0
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                              fontWeight:
+                                  unread > 0 ? FontWeight.w500 : FontWeight.normal,
                             ),
                           ),
                         ),
                         if (unread > 0) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               '$unread',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                         if (isGroup) ...[
                           const SizedBox(width: 6),
                           Text(
-                            '${chat['members']}',
-                            style: TextStyle(fontFamily: 'Heebo', fontSize: 11, color: AppColors.textHint),
+                            '${chat['members'] ?? 0}',
+                            style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 11,
+                                color: AppColors.textHint),
                           ),
                           const SizedBox(width: 2),
                           Icon(Icons.people, size: 12, color: AppColors.textHint),
@@ -539,17 +534,15 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   void _openChat(Map<String, dynamic> chat) {
-    // Mark as read
-    setState(() {
-      chat['unread'] = 0;
-    });
-
-    // Open chat conversation sheet
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ChatConversationSheet(chat: chat),
+      builder: (context) => _ChatConversationSheet(
+        chat: chat,
+        currentUserId: _currentUserId,
+        currentUserName: _currentUserName,
+      ),
     );
   }
 
@@ -558,7 +551,8 @@ class _ChatScreenState extends State<ChatScreen>
       return EnhancedEmptyState(
         icon: Icons.group_outlined,
         title: 'אין קבוצות עדיין',
-        subtitle: 'הצטרפי לקבוצות באפליקציה או צרי קבוצה חדשה כדי להתחיל לשוחח',
+        subtitle:
+            'הצטרפי לקבוצות באפליקציה או צרי קבוצה חדשה כדי להתחיל לשוחח',
         buttonText: 'צרי קבוצה',
         onButtonPressed: () => _showNewChatSheet(),
         iconColor: AppColors.accent,
@@ -573,7 +567,7 @@ class _ChatScreenState extends State<ChatScreen>
         iconColor: AppColors.primary,
       );
     }
-    
+
     return EnhancedEmptyState.messages(
       onStartChat: () => _showNewChatSheet(),
     );
@@ -591,6 +585,8 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  // ── New chat sheet ──
+
   void _showNewChatSheet() {
     showModalBottomSheet(
       context: context,
@@ -604,18 +600,33 @@ class _ChatScreenState extends State<ChatScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 20),
-            const Text('שיחה חדשה', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('שיחה חדשה',
+                style: TextStyle(
+                    fontFamily: 'Heebo',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.person_add, color: AppColors.primary),
+                decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle),
+                child:
+                    const Icon(Icons.person_add, color: AppColors.primary),
               ),
-              title: const Text('שיחה פרטית', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
-              subtitle: const Text('שלחי הודעה לאמא מהקהילה', style: TextStyle(fontFamily: 'Heebo')),
+              title: const Text('שיחה פרטית',
+                  style: TextStyle(
+                      fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+              subtitle: const Text('שלחי הודעה לאמא מהקהילה',
+                  style: TextStyle(fontFamily: 'Heebo')),
               onTap: () {
                 Navigator.pop(context);
                 _startNewPrivateChat();
@@ -624,11 +635,17 @@ class _ChatScreenState extends State<ChatScreen>
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.group_add, color: AppColors.accent),
+                decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle),
+                child:
+                    const Icon(Icons.group_add, color: AppColors.accent),
               ),
-              title: const Text('קבוצה חדשה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
-              subtitle: const Text('צרי קבוצת שיחה עם מספר אמהות', style: TextStyle(fontFamily: 'Heebo')),
+              title: const Text('קבוצה חדשה',
+                  style: TextStyle(
+                      fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+              subtitle: const Text('צרי קבוצת שיחה עם מספר אמהות',
+                  style: TextStyle(fontFamily: 'Heebo')),
               onTap: () {
                 Navigator.pop(context);
                 _createNewGroup();
@@ -641,58 +658,146 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
+  // ── Start new private chat (pick a user from Firestore) ──
+
   void _startNewPrivateChat() {
-    final nameController = TextEditingController();
-    showDialog(
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final userId = _currentUserId;
+    final userName = _currentUserName;
+
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('שיחה פרטית חדשה', style: TextStyle(fontFamily: 'Heebo')),
-        content: TextField(
-          controller: nameController,
-          textDirection: TextDirection.rtl,
-          style: const TextStyle(fontFamily: 'Heebo'),
-          decoration: InputDecoration(
-            hintText: 'הקלידי שם של אמא מהקהילה',
-            hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
-            filled: true,
-            fillColor: AppColors.surfaceVariant,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo'))),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty) {
-                setState(() {
-                  _conversations.insert(0, {
-                    'id': 'new_${DateTime.now().millisecondsSinceEpoch}',
-                    'name': nameController.text,
-                    'avatar': null,
-                    'lastMessage': 'שיחה חדשה - שלחי הודעה ראשונה!',
-                    'time': 'עכשיו',
-                    'unread': 0,
-                    'isOnline': false,
-                    'isGroup': false,
-                  });
-                });
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('שיחה עם ${nameController.text} נוצרה', style: const TextStyle(fontFamily: 'Heebo')),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('התחלת שיחה', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
-          ),
-        ],
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 16),
+                  const Text('בחרי משתמשת',
+                      style: TextStyle(
+                          fontFamily: 'Heebo',
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: fs.usersStream,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final users = (snapshot.data ?? [])
+                      .where((u) =>
+                          u['id'] != userId &&
+                          (u['status'] == 'active' || u['status'] == 'approved'))
+                      .toList();
+                  if (users.isEmpty) {
+                    return const Center(
+                        child: Text('אין משתמשות זמינות',
+                            style: TextStyle(fontFamily: 'Heebo')));
+                  }
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: user['profileImage'] != null &&
+                                  (user['profileImage'] as String).isNotEmpty
+                              ? NetworkImage(user['profileImage'])
+                              : null,
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.2),
+                          child: user['profileImage'] == null ||
+                                  (user['profileImage'] as String).isEmpty
+                              ? const Icon(Icons.person,
+                                  color: AppColors.primary)
+                              : null,
+                        ),
+                        title: Text(
+                          user['fullName'] ?? user['email'] ?? 'משתמשת',
+                          style: const TextStyle(
+                              fontFamily: 'Heebo',
+                              fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          user['city'] ?? '',
+                          style: TextStyle(
+                              fontFamily: 'Heebo',
+                              color: AppColors.textSecondary),
+                        ),
+                        onTap: () async {
+                          Navigator.pop(sheetCtx);
+                          try {
+                            final convId = await fs.createDirectMessage(
+                              fromUserId: userId,
+                              fromUserName: userName,
+                              toUserId: user['id'],
+                              toUserName:
+                                  user['fullName'] ?? user['email'] ?? 'משתמשת',
+                              toAvatar: user['profileImage'],
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'שיחה עם ${user['fullName'] ?? 'משתמשת'} נוצרה',
+                                      style:
+                                          const TextStyle(fontFamily: 'Heebo')),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              // Open the conversation
+                              _openChat({
+                                'id': convId,
+                                'name':
+                                    user['fullName'] ?? user['email'] ?? 'משתמשת',
+                                'avatar': user['profileImage'],
+                                'lastMessage': '',
+                                'time': 'עכשיו',
+                                'unread': 0,
+                                'isOnline': false,
+                                'isGroup': false,
+                                'conversationId': convId,
+                              });
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              AppSnackbar.error(
+                                  context, 'שגיאה ביצירת שיחה: $e');
+                            }
+                          }
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  // ── Create new group (writes to Firestore) ──
 
   void _createNewGroup() {
     final nameController = TextEditingController();
@@ -705,14 +810,16 @@ class _ChatScreenState extends State<ChatScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('יצירת קבוצה חדשה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('יצירת קבוצה חדשה',
+              style: TextStyle(
+                  fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Group Name
                 TextField(
                   controller: nameController,
                   textDirection: TextDirection.rtl,
@@ -720,15 +827,16 @@ class _ChatScreenState extends State<ChatScreen>
                   decoration: InputDecoration(
                     labelText: 'שם הקבוצה',
                     hintText: 'למשל: אמהות תל אביב',
-                    hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                    hintStyle: TextStyle(
+                        fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Group Description
                 TextField(
                   controller: descriptionController,
                   textDirection: TextDirection.rtl,
@@ -737,33 +845,39 @@ class _ChatScreenState extends State<ChatScreen>
                   decoration: InputDecoration(
                     labelText: 'תיאור הקבוצה',
                     hintText: 'על מה הקבוצה?',
-                    hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                    hintStyle: TextStyle(
+                        fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Admin verification info
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline, size: 18, color: AppColors.accent),
+                          Icon(Icons.info_outline,
+                              size: 18, color: AppColors.accent),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
                               'פרטי יצירת הקבוצה',
-                              style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 13),
+                              style: TextStyle(
+                                  fontFamily: 'Heebo',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13),
                             ),
                           ),
                         ],
@@ -771,14 +885,15 @@ class _ChatScreenState extends State<ChatScreen>
                       const SizedBox(height: 6),
                       Text(
                         'נדרש לאימות מנהל בלבד - לא יוצג למשתמשות',
-                        style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary),
+                        style: TextStyle(
+                            fontFamily: 'Heebo',
+                            fontSize: 12,
+                            color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Email
                 TextField(
                   controller: emailController,
                   textDirection: TextDirection.ltr,
@@ -787,16 +902,17 @@ class _ChatScreenState extends State<ChatScreen>
                   decoration: InputDecoration(
                     labelText: 'אימייל ליצירת קשר',
                     hintText: 'your@email.com',
-                    hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                    hintStyle: TextStyle(
+                        fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
                     prefixIcon: const Icon(Icons.email_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Phone
                 TextField(
                   controller: phoneController,
                   textDirection: TextDirection.ltr,
@@ -805,10 +921,13 @@ class _ChatScreenState extends State<ChatScreen>
                   decoration: InputDecoration(
                     labelText: 'טלפון ליצירת קשר',
                     hintText: '050-1234567',
-                    hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                    hintStyle: TextStyle(
+                        fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,
                     fillColor: AppColors.surfaceVariant,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
                     prefixIcon: const Icon(Icons.phone_outlined),
                   ),
                 ),
@@ -818,92 +937,80 @@ class _ChatScreenState extends State<ChatScreen>
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(ctx),
-              child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo')),
+              child: const Text('ביטול',
+                  style: TextStyle(fontFamily: 'Heebo')),
             ),
             ElevatedButton(
-              onPressed: isLoading ? null : () async {
-                // Validate fields
-                if (nameController.text.trim().isEmpty) {
-                  AppSnackbar.error(context, 'נא להזין שם קבוצה');
-                  return;
-                }
-                if (descriptionController.text.trim().isEmpty) {
-                  AppSnackbar.error(context, 'נא להזין תיאור קבוצה');
-                  return;
-                }
-                if (emailController.text.trim().isEmpty) {
-                  AppSnackbar.error(context, 'נא להזין אימייל ליצירת קשר');
-                  return;
-                }
-                if (phoneController.text.trim().isEmpty) {
-                  AppSnackbar.error(context, 'נא להזין טלפון ליצירת קשר');
-                  return;
-                }
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (nameController.text.trim().isEmpty) {
+                        AppSnackbar.error(context, 'נא להזין שם קבוצה');
+                        return;
+                      }
+                      if (descriptionController.text.trim().isEmpty) {
+                        AppSnackbar.error(context, 'נא להזין תיאור קבוצה');
+                        return;
+                      }
+                      if (emailController.text.trim().isEmpty) {
+                        AppSnackbar.error(
+                            context, 'נא להזין אימייל ליצירת קשר');
+                        return;
+                      }
+                      if (phoneController.text.trim().isEmpty) {
+                        AppSnackbar.error(
+                            context, 'נא להזין טלפון ליצירת קשר');
+                        return;
+                      }
 
-                // Show loading
-                setDialogState(() => isLoading = true);
+                      setDialogState(() => isLoading = true);
 
-                try {
-                  // Get current user info
-                  final appState = Provider.of<AppState>(context, listen: false);
-                  final currentUser = appState.currentUser;
+                      try {
+                        final appState =
+                            Provider.of<AppState>(context, listen: false);
+                        final currentUser = appState.currentUser;
 
-                  if (currentUser == null) {
-                    AppSnackbar.error(context, 'משתמש לא מחובר');
-                    setDialogState(() => isLoading = false);
-                    return;
-                  }
+                        if (currentUser == null) {
+                          AppSnackbar.error(context, 'משתמש לא מחובר');
+                          setDialogState(() => isLoading = false);
+                          return;
+                        }
 
-                  // Get FirestoreService
-                  final firestoreService = Provider.of<FirestoreService>(context, listen: false);
+                        final firestoreService =
+                            Provider.of<FirestoreService>(context,
+                                listen: false);
 
-                  // Create chat group in Firestore
-                  final groupId = await firestoreService.createChatGroup(
-                    name: nameController.text.trim(),
-                    description: descriptionController.text.trim(),
-                    creatorId: currentUser.id,
-                    creatorName: currentUser.fullName ?? 'משתמש',
-                    creatorEmail: emailController.text.trim(),
-                    creatorPhone: phoneController.text.trim(),
-                  );
+                        await firestoreService.createChatGroup(
+                          name: nameController.text.trim(),
+                          description: descriptionController.text.trim(),
+                          creatorId: currentUser.id,
+                          creatorName: currentUser.fullName ?? 'משתמש',
+                          creatorEmail: emailController.text.trim(),
+                          creatorPhone: phoneController.text.trim(),
+                        );
 
-                  // Add to local list for immediate UI update
-                  setState(() {
-                    _groups.insert(0, {
-                      'id': groupId,
-                      'name': nameController.text.trim(),
-                      'avatar': null,
-                      'emoji': '💬',
-                      'lastMessage': 'קבוצה חדשה נוצרה! ממתינה לאישור מנהל',
-                      'time': 'עכשיו',
-                      'unread': 0,
-                      'members': 1,
-                      'isGroup': true,
-                    });
-                  });
+                        Navigator.pop(ctx);
 
-                  // Close dialog
-                  Navigator.pop(ctx);
-
-                  // Show success message
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'הקבוצה "${nameController.text}" נוצרה בהצלחה!\nהקבוצה ממתינה לאישור מנהל ותהיה זמינה בקרוב.',
-                        style: const TextStyle(fontFamily: 'Heebo'),
-                      ),
-                      backgroundColor: AppColors.success,
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                } catch (e) {
-                  setDialogState(() => isLoading = false);
-                  AppSnackbar.error(context, 'שגיאה ביצירת הקבוצה: ${e.toString()}');
-                }
-              },
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'הקבוצה "${nameController.text}" נוצרה בהצלחה!\nהקבוצה ממתינה לאישור מנהל ותהיה זמינה בקרוב.',
+                              style: const TextStyle(fontFamily: 'Heebo'),
+                            ),
+                            backgroundColor: AppColors.success,
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
+                      } catch (e) {
+                        setDialogState(() => isLoading = false);
+                        AppSnackbar.error(
+                            context, 'שגיאה ביצירת הקבוצה: ${e.toString()}');
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                disabledBackgroundColor:
+                    AppColors.primary.withValues(alpha: 0.5),
               ),
               child: isLoading
                   ? const SizedBox(
@@ -911,22 +1018,53 @@ class _ChatScreenState extends State<ChatScreen>
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text('יצירת קבוצה', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
+                  : const Text('יצירת קבוצה',
+                      style: TextStyle(
+                          fontFamily: 'Heebo', color: Colors.white)),
             ),
           ],
         ),
       ),
     );
   }
+
+  // ── Helpers ──
+
+  String _formatTimestamp(dynamic ts) {
+    if (ts == null) return '';
+    DateTime dt;
+    if (ts is Timestamp) {
+      dt = ts.toDate();
+    } else if (ts is DateTime) {
+      dt = ts;
+    } else {
+      return '';
+    }
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'עכשיו';
+    if (diff.inMinutes < 60) return 'לפני ${diff.inMinutes} דק\'';
+    if (diff.inHours < 24) return 'לפני ${diff.inHours} שעות';
+    if (diff.inDays < 2) return 'אתמול';
+    return '${dt.day}/${dt.month}';
+  }
 }
 
-/// Chat conversation sheet - simulated chat interface
+/// Chat conversation sheet - connected to Firestore messages
 class _ChatConversationSheet extends StatefulWidget {
   final Map<String, dynamic> chat;
-  const _ChatConversationSheet({required this.chat});
+  final String currentUserId;
+  final String currentUserName;
+
+  const _ChatConversationSheet({
+    required this.chat,
+    required this.currentUserId,
+    required this.currentUserName,
+  });
 
   @override
   State<_ChatConversationSheet> createState() => _ChatConversationSheetState();
@@ -935,18 +1073,9 @@ class _ChatConversationSheet extends StatefulWidget {
 class _ChatConversationSheetState extends State<_ChatConversationSheet> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [];
 
-  @override
-  void initState() {
-    super.initState();
-    // Demo messages
-    _messages.addAll([
-      {'text': 'היי! מה שלומך?', 'isMe': false, 'time': '10:30'},
-      {'text': 'היי! הכל טוב תודה, ואצלך?', 'isMe': true, 'time': '10:31'},
-      {'text': widget.chat['lastMessage'], 'isMe': false, 'time': '10:35'},
-    ]);
-  }
+  bool get _isGroup => widget.chat['isGroup'] == true;
+  String get _chatId => widget.chat['id'] ?? '';
 
   @override
   void dispose() {
@@ -969,6 +1098,8 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: const BoxDecoration(
@@ -982,94 +1113,180 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.05),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                  icon:
+                      const Icon(Icons.arrow_back_ios_rounded, size: 20),
                   onPressed: () => Navigator.pop(context),
                 ),
-                if (widget.chat['isGroup'] == true)
+                if (_isGroup)
                   Container(
-                    width: 40, height: 40,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: Center(child: Text(widget.chat['emoji'] ?? '👥', style: const TextStyle(fontSize: 20))),
+                    child: Center(
+                        child: Text(widget.chat['emoji'] ?? '👥',
+                            style: const TextStyle(fontSize: 20))),
                   )
                 else
                   CircleAvatar(
                     radius: 20,
-                    backgroundImage: widget.chat['avatar'] != null ? NetworkImage(widget.chat['avatar']) : null,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                    child: widget.chat['avatar'] == null ? const Icon(Icons.person, color: AppColors.primary, size: 20) : null,
+                    backgroundImage: widget.chat['avatar'] != null
+                        ? NetworkImage(widget.chat['avatar'])
+                        : null,
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.2),
+                    child: widget.chat['avatar'] == null
+                        ? const Icon(Icons.person,
+                            color: AppColors.primary, size: 20)
+                        : null,
                   ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.chat['name'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
-                      if (widget.chat['isGroup'] == true)
-                        Text('${widget.chat['members']} חברות', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary))
+                      Text(widget.chat['name'] ?? '',
+                          style: const TextStyle(
+                              fontFamily: 'Heebo',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
+                      if (_isGroup)
+                        Text('${widget.chat['members'] ?? 0} חברות',
+                            style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 12,
+                                color: AppColors.textSecondary))
                       else if (widget.chat['isOnline'] == true)
-                        const Text('מחוברת', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.success)),
+                        const Text('מחוברת',
+                            style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 12,
+                                color: AppColors.success)),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          // Messages
+          // Messages from Firestore
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              reverse: true,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[_messages.length - 1 - index];
-                final isMe = msg['isMe'] as bool;
-                return Align(
-                  alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-                    decoration: BoxDecoration(
-                      color: isMe ? AppColors.primary : AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: Radius.circular(isMe ? 4 : 16),
-                        bottomRight: Radius.circular(isMe ? 16 : 4),
-                      ),
-                    ),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _isGroup
+                  ? fs.groupMessagesStream(_chatId)
+                  : fs.dmMessagesStream(_chatId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final messages = snapshot.data ?? [];
+                if (messages.isEmpty) {
+                  return Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          msg['text'],
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 15,
-                            color: isMe ? Colors.white : AppColors.textPrimary,
-                          ),
-                        ),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 48,
+                            color: AppColors.textHint.withValues(alpha: 0.5)),
+                        const SizedBox(height: 12),
+                        Text('אין הודעות עדיין',
+                            style: TextStyle(
+                                fontFamily: 'Heebo',
+                                color: AppColors.textHint)),
                         const SizedBox(height: 4),
-                        Text(
-                          msg['time'],
-                          style: TextStyle(
-                            fontFamily: 'Heebo',
-                            fontSize: 10,
-                            color: isMe ? Colors.white.withValues(alpha: 0.7) : AppColors.textHint,
-                          ),
-                        ),
+                        Text('שלחי הודעה ראשונה!',
+                            style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 13,
+                                color: AppColors.textHint)),
                       ],
                     ),
-                  ),
+                  );
+                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(0);
+                  }
+                });
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[messages.length - 1 - index];
+                    final isMe = msg['senderId'] == widget.currentUserId;
+                    final time = _formatMsgTime(msg['createdAt']);
+                    return Align(
+                      alignment:
+                          isMe ? Alignment.centerLeft : Alignment.centerRight,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        constraints: BoxConstraints(
+                            maxWidth:
+                                MediaQuery.of(context).size.width * 0.7),
+                        decoration: BoxDecoration(
+                          color: isMe
+                              ? AppColors.primary
+                              : AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(16),
+                            topRight: const Radius.circular(16),
+                            bottomLeft: Radius.circular(isMe ? 4 : 16),
+                            bottomRight: Radius.circular(isMe ? 16 : 4),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (_isGroup && !isMe)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  msg['senderName'] ?? '',
+                                  style: TextStyle(
+                                    fontFamily: 'Heebo',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              msg['text'] ?? '',
+                              style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 15,
+                                color: isMe
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              time,
+                              style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 10,
+                                color: isMe
+                                    ? Colors.white.withValues(alpha: 0.7)
+                                    : AppColors.textHint,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -1077,7 +1294,8 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
           // Input
           SafeArea(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: AppColors.border)),
@@ -1091,11 +1309,16 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
                       style: const TextStyle(fontFamily: 'Heebo'),
                       decoration: InputDecoration(
                         hintText: 'כתבי הודעה...',
-                        hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+                        hintStyle: TextStyle(
+                            fontFamily: 'Heebo',
+                            color: AppColors.textHint),
                         filled: true,
                         fillColor: AppColors.surfaceVariant,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                       ),
                       onSubmitted: (_) => _sendMessage(),
                     ),
@@ -1109,7 +1332,8 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.send, color: Colors.white, size: 20),
+                      child: const Icon(Icons.send,
+                          color: Colors.white, size: 20),
                     ),
                   ),
                 ],
@@ -1124,36 +1348,37 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
     HapticFeedback.lightImpact();
-    setState(() {
-      _messages.add({
-        'text': _messageController.text,
-        'isMe': true,
-        'time': '${TimeOfDay.now().hour}:${TimeOfDay.now().minute.toString().padLeft(2, '0')}',
-      });
-    });
+    final text = _messageController.text.trim();
     _messageController.clear();
-    _scrollToBottom();
 
-    // Simulate reply after 1.5 seconds
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        final replies = [
-          'מעניין, ספרי עוד',
-          'לגמרי מסכימה!',
-          'תודה על השיתוף',
-          'איזה כיף! 🎉',
-          'אני גם חושבת ככה',
-          'מעולה! 👏',
-        ];
-        setState(() {
-          _messages.add({
-            'text': replies[DateTime.now().second % replies.length],
-            'isMe': false,
-            'time': '${TimeOfDay.now().hour}:${TimeOfDay.now().minute.toString().padLeft(2, '0')}',
-          });
-        });
-        _scrollToBottom();
-      }
-    });
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    if (_isGroup) {
+      fs.sendGroupMessage(
+        groupId: _chatId,
+        senderId: widget.currentUserId,
+        senderName: widget.currentUserName,
+        text: text,
+      );
+    } else {
+      fs.sendDirectMessage(
+        conversationId: _chatId,
+        senderId: widget.currentUserId,
+        text: text,
+      );
+    }
+    _scrollToBottom();
+  }
+
+  String _formatMsgTime(dynamic ts) {
+    if (ts == null) return '';
+    DateTime dt;
+    if (ts is Timestamp) {
+      dt = ts.toDate();
+    } else if (ts is DateTime) {
+      dt = ts;
+    } else {
+      return '';
+    }
+    return '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }

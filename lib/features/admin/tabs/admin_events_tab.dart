@@ -314,6 +314,76 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
               ],
             ),
 
+            // Creator contact info (admin-only section)
+            if ((event['creatorEmail'] as String? ?? '').isNotEmpty ||
+                (event['creatorPhone'] as String? ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF9E6),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.admin_panel_settings, size: 14, color: Colors.orange.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          'פרטי קשר - למנהלת בלבד',
+                          style: TextStyle(
+                            fontFamily: 'Heebo',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if ((event['creatorEmail'] as String? ?? '').isNotEmpty)
+                      Row(
+                        children: [
+                          Icon(Icons.email_outlined, size: 14, color: Colors.grey.shade600),
+                          const SizedBox(width: 6),
+                          Text(
+                            event['creatorEmail'],
+                            style: TextStyle(
+                              fontFamily: 'Heebo',
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if ((event['creatorPhone'] as String? ?? '').isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.phone_outlined, size: 14, color: Colors.grey.shade600),
+                            const SizedBox(width: 6),
+                            Text(
+                              event['creatorPhone'],
+                              style: TextStyle(
+                                fontFamily: 'Heebo',
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+
             const SizedBox(height: 12),
 
             // Attendees progress
@@ -516,6 +586,10 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
         text: (existingEvent?['maxAttendees'] ?? '').toString());
     final descriptionController =
         TextEditingController(text: existingEvent?['description'] ?? '');
+    final emailController =
+        TextEditingController(text: existingEvent?['creatorEmail'] ?? '');
+    final phoneController =
+        TextEditingController(text: existingEvent?['creatorPhone'] ?? '');
 
     DateTime? selectedDate;
     if (existingEvent?['date'] is DateTime) {
@@ -652,6 +726,32 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                       icon: Icons.description,
                       maxLines: 3,
                     ),
+                    const SizedBox(height: 16),
+
+                    // Creator contact info section
+                    Text(
+                      'פרטי קשר יוצרת האירוע',
+                      style: TextStyle(
+                        fontFamily: 'Heebo',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildTextField(
+                      controller: emailController,
+                      label: 'אימייל',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField(
+                      controller: phoneController,
+                      label: 'טלפון (05X-XXXXXXX)',
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
                   ],
                 ),
               ),
@@ -682,6 +782,26 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                     );
                     return;
                   }
+
+                  // Validate email if provided
+                  final emailValue = emailController.text.trim();
+                  if (emailValue.isNotEmpty && !emailValue.contains('@')) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('כתובת אימייל לא תקינה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+
+                  // Validate Israeli phone if provided
+                  final phoneValue = phoneController.text.trim();
+                  final phoneRegex = RegExp(r'^0(5[0-9])[- ]?\d{3}[- ]?\d{4}$');
+                  if (phoneValue.isNotEmpty && !phoneRegex.hasMatch(phoneValue)) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('מספר טלפון לא תקין (05X-XXXXXXX)', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+
                   final eventData = {
                     'title': title,
                     'date': selectedDate,
@@ -691,6 +811,8 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                     'maxAttendees':
                         int.tryParse(maxAttendeesController.text.trim()) ?? 0,
                     'description': descriptionController.text.trim(),
+                    'creatorEmail': emailValue,
+                    'creatorPhone': phoneValue,
                   };
 
                   if (isEditing) {
@@ -744,6 +866,8 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
     organizerController.dispose();
     maxAttendeesController.dispose();
     descriptionController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
   }
 
   Widget _buildTextField({

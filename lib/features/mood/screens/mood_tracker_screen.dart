@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/app_state.dart';
 
 /// Mood Tracker - מעקב מצב רוח יומי לאמהות
 class MoodTrackerScreen extends StatefulWidget {
@@ -23,16 +27,6 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
     {'icon': Icons.mood_bad_rounded, 'label': 'מתוסכל', 'color': const Color(0xFFD1C2D3)},
     {'icon': Icons.bedtime_outlined, 'label': 'עייף', 'color': const Color(0xFF9B8F92)},
     {'icon': Icons.psychology_outlined, 'label': 'חרדה', 'color': const Color(0xFFD6C7C1)},
-  ];
-
-  final List<Map<String, dynamic>> _moodHistory = [
-    {'icon': Icons.sentiment_very_satisfied_rounded, 'date': 'היום', 'note': 'יום נהדר עם הילדים!', 'time': '09:30'},
-    {'icon': Icons.bedtime_outlined, 'date': 'אתמול', 'note': 'לילה ארוך, אבל עברתי את זה', 'time': '22:15'},
-    {'icon': Icons.sentiment_satisfied_rounded, 'date': 'שלשום', 'note': 'פגשתי חברה לקפה', 'time': '14:00'},
-    {'icon': Icons.sentiment_dissatisfied_rounded, 'date': 'לפני 3 ימים', 'note': 'יום קשה, הרבה בכי', 'time': '20:45'},
-    {'icon': Icons.sentiment_very_satisfied_rounded, 'date': 'לפני 4 ימים', 'note': 'הצעד הראשון של התינוק!', 'time': '11:30'},
-    {'icon': Icons.sentiment_neutral_rounded, 'date': 'לפני 5 ימים', 'note': '', 'time': '18:00'},
-    {'icon': Icons.sentiment_satisfied_rounded, 'date': 'לפני 6 ימים', 'note': 'יוגה עם אמהות', 'time': '10:00'},
   ];
 
   final List<String> _quickTags = [
@@ -257,27 +251,46 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: () {
-            setState(() {
-              _moodHistory.insert(0, {
-                'emoji': mood['icon'],
-                'date': 'עכשיו',
-                'note': _note.isNotEmpty ? _note : _selectedTags.join(', '),
-                'time': '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+          onPressed: () async {
+            final fs = Provider.of<FirestoreService>(context, listen: false);
+            final appState = Provider.of<AppState>(context, listen: false);
+            final userId = appState.currentUser?.id ?? 'anonymous';
+            try {
+              await fs.saveMoodEntry({
+                'userId': userId,
+                'moodIndex': _selectedMoodIndex,
+                'moodLabel': mood['label'],
+                'note': _note.isNotEmpty ? _note : '',
+                'tags': List<String>.from(_selectedTags),
+                'timestamp': DateTime.now().toIso8601String(),
               });
-              _selectedMoodIndex = null;
-              _selectedTags.clear();
-              _noteController.clear();
-              _note = '';
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('נשמר! תודה ששיתפת', style: TextStyle(fontFamily: 'Heebo')),
-                backgroundColor: mood['color'] as Color,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
+              if (mounted) {
+                setState(() {
+                  _selectedMoodIndex = null;
+                  _selectedTags.clear();
+                  _noteController.clear();
+                  _note = '';
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('נשמר! תודה ששיתפת', style: TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: mood['color'] as Color,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('שגיאה בשמירה: $e', style: const TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: mood['color'] as Color,
@@ -298,112 +311,210 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
   }
 
   Widget _buildWeeklyOverview() {
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = appState.currentUser?.id ?? 'anonymous';
     final days = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
-    final weekIcons = [
-      Icons.sentiment_very_satisfied_rounded,
-      Icons.bedtime_outlined,
-      Icons.sentiment_satisfied_rounded,
-      Icons.sentiment_dissatisfied_rounded,
-      Icons.sentiment_very_satisfied_rounded,
-      Icons.sentiment_neutral_rounded,
-      Icons.sentiment_satisfied_rounded,
-    ];
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: fs.moodEntriesStream(userId),
+      builder: (context, snapshot) {
+        // Build a map: weekday (1=Mon..7=Sun) -> last mood entry for that day
+        final Map<int, int> weekdayMoodIndex = {};
+        if (snapshot.hasData) {
+          final now = DateTime.now();
+          for (final entry in snapshot.data!) {
+            DateTime? dt;
+            final ts = entry['createdAt'];
+            if (ts is Timestamp) {
+              dt = ts.toDate();
+            } else {
+              final raw = entry['timestamp'];
+              if (raw is String) {
+                dt = DateTime.tryParse(raw);
+              }
+            }
+            if (dt != null && now.difference(dt).inDays < 7) {
+              final wd = dt.weekday; // 1=Mon..7=Sun
+              if (!weekdayMoodIndex.containsKey(wd)) {
+                weekdayMoodIndex[wd] = (entry['moodIndex'] as int?) ?? 2;
+              }
+            }
+          }
+        }
+
+        // Hebrew week starts Sunday; map display index to weekday
+        // Display: א=Sun(7), ב=Mon(1), ג=Tue(2), ד=Wed(3), ה=Thu(4), ו=Fri(5), ש=Sat(6)
+        final displayToWeekday = [7, 1, 2, 3, 4, 5, 6];
+        final todayWeekday = DateTime.now().weekday;
+
+        // Compute average label
+        String avgLabel = '';
+        if (weekdayMoodIndex.isNotEmpty) {
+          final avg = weekdayMoodIndex.values.reduce((a, b) => a + b) / weekdayMoodIndex.length;
+          final avgIdx = avg.round().clamp(0, _moods.length - 1);
+          avgLabel = 'ממוצע: ${_moods[avgIdx]['label']}';
+        }
+
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('סקירה שבועית', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
-              const Spacer(),
-              Text('ממוצע: טוב', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary)),
+              Row(
+                children: [
+                  const Text('סקירה שבועית', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  if (avgLabel.isNotEmpty)
+                    Text(avgLabel, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(7, (i) {
+                  final wd = displayToWeekday[i];
+                  final isToday = wd == todayWeekday;
+                  final moodIdx = weekdayMoodIndex[wd];
+                  final icon = moodIdx != null
+                      ? (_moods[moodIdx.clamp(0, _moods.length - 1)]['icon'] as IconData)
+                      : Icons.remove_rounded;
+                  return Column(
+                    children: [
+                      Text(days[i], style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isToday ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
+                          border: isToday ? Border.all(color: AppColors.primary, width: 2) : null,
+                        ),
+                        child: Center(child: Icon(icon, size: 20, color: isToday ? AppColors.primary : AppColors.textSecondary)),
+                      ),
+                    ],
+                  );
+                }),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (i) {
-              final isToday = i == 0;
-              return Column(
-                children: [
-                  Text(days[i], style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isToday ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surfaceVariant,
-                      border: isToday ? Border.all(color: AppColors.primary, width: 2) : null,
-                    ),
-                    child: Center(child: Icon(weekIcons[i], size: 20, color: isToday ? AppColors.primary : AppColors.textSecondary)),
-                  ),
-                ],
-              );
-            }),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(dt.year, dt.month, dt.day);
+    final diff = today.difference(dateOnly).inDays;
+    if (diff == 0) return 'היום';
+    if (diff == 1) return 'אתמול';
+    if (diff == 2) return 'שלשום';
+    return 'לפני $diff ימים';
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildMoodHistory() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('היסטוריה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 12),
-          ...(_moodHistory.take(5).map((entry) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(entry['icon'] as IconData, size: 28, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(entry['date'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Text(entry['time'], style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
-                          ],
-                        ),
-                        if ((entry['note'] as String).isNotEmpty)
-                          Text(
-                            entry['note'],
-                            style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: AppColors.textSecondary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = appState.currentUser?.id ?? 'anonymous';
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: fs.moodEntriesStream(userId),
+      builder: (context, snapshot) {
+        final entries = snapshot.data ?? [];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('היסטוריה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 12),
+              if (entries.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(
+                      'אין היסטוריה עדיין. שתפי את מצב הרוח שלך!',
+                      style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textHint),
                     ),
                   ),
-                ],
-              ),
-            );
-          })),
-        ],
-      ),
+                )
+              else
+                ...(entries.take(5).map((entry) {
+                  DateTime? dt;
+                  final ts = entry['createdAt'];
+                  if (ts is Timestamp) {
+                    dt = ts.toDate();
+                  } else {
+                    final raw = entry['timestamp'];
+                    if (raw is String) dt = DateTime.tryParse(raw);
+                  }
+                  final moodIdx = (entry['moodIndex'] as int?) ?? 2;
+                  final clampedIdx = moodIdx.clamp(0, _moods.length - 1);
+                  final icon = _moods[clampedIdx]['icon'] as IconData;
+                  final note = (entry['note'] as String?) ?? '';
+                  final tags = entry['tags'];
+                  final displayNote = note.isNotEmpty
+                      ? note
+                      : (tags is List && tags.isNotEmpty ? tags.join(', ') : '');
+                  final dateStr = dt != null ? _formatDate(dt) : '';
+                  final timeStr = dt != null ? _formatTime(dt) : '';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(icon, size: 28, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(dateStr, style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 14)),
+                                  const SizedBox(width: 6),
+                                  Text(timeStr, style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                                ],
+                              ),
+                              if (displayNote.isNotEmpty)
+                                Text(
+                                  displayNote,
+                                  style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                })),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -438,32 +549,109 @@ class _MoodTrackerScreenState extends State<MoodTrackerScreen> {
   }
 
   void _showInsights() {
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final appState = Provider.of<AppState>(context, listen: false);
+    final userId = appState.currentUser?.id ?? 'anonymous';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+      builder: (ctx) => StreamBuilder<List<Map<String, dynamic>>>(
+        stream: fs.moodEntriesStream(userId),
+        builder: (ctx, snapshot) {
+          final entries = snapshot.data ?? [];
+
+          // Calculate insights from real data
+          String avgLabel = 'אין מספיק נתונים';
+          String trendDesc = 'צריך לפחות כמה רישומים כדי לזהות מגמות';
+          String topTagDesc = 'שתפי יותר כדי לגלות תובנות';
+          String countDesc = 'סה"כ ${entries.length} רישומים';
+
+          if (entries.isNotEmpty) {
+            // Weekly average
+            final now = DateTime.now();
+            final weekEntries = entries.where((e) {
+              DateTime? dt;
+              final ts = e['createdAt'];
+              if (ts is Timestamp) dt = ts.toDate();
+              else {
+                final raw = e['timestamp'];
+                if (raw is String) dt = DateTime.tryParse(raw);
+              }
+              return dt != null && now.difference(dt).inDays < 7;
+            }).toList();
+
+            if (weekEntries.isNotEmpty) {
+              final avgIdx = weekEntries
+                  .map((e) => (e['moodIndex'] as int?) ?? 2)
+                  .reduce((a, b) => a + b) / weekEntries.length;
+              final clampedAvg = avgIdx.round().clamp(0, _moods.length - 1);
+              avgLabel = 'מצב הרוח הממוצע שלך השבוע: ${_moods[clampedAvg]['label']}';
+            } else {
+              avgLabel = 'אין רישומים מהשבוע האחרון';
+            }
+
+            // Trend: compare first half vs second half of entries
+            if (entries.length >= 4) {
+              final half = entries.length ~/ 2;
+              final recentAvg = entries.sublist(0, half)
+                  .map((e) => (e['moodIndex'] as int?) ?? 2)
+                  .reduce((a, b) => a + b) / half;
+              final olderAvg = entries.sublist(half)
+                  .map((e) => (e['moodIndex'] as int?) ?? 2)
+                  .reduce((a, b) => a + b) / (entries.length - half);
+              if (recentAvg < olderAvg) {
+                trendDesc = 'מצב הרוח שלך השתפר לאחרונה!';
+              } else if (recentAvg > olderAvg) {
+                trendDesc = 'נראה שמצב הרוח ירד קצת לאחרונה. שמרי על עצמך.';
+              } else {
+                trendDesc = 'מצב הרוח שלך יציב.';
+              }
+            }
+
+            // Top tags
+            final tagCounts = <String, int>{};
+            for (final e in entries) {
+              final tags = e['tags'];
+              if (tags is List) {
+                for (final t in tags) {
+                  tagCounts[t.toString()] = (tagCounts[t.toString()] ?? 0) + 1;
+                }
+              }
+            }
+            if (tagCounts.isNotEmpty) {
+              final sorted = tagCounts.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+              final topTags = sorted.take(3).map((e) => e.key).join(', ');
+              topTagDesc = 'התגיות הנפוצות שלך: $topTags';
+            }
+          }
+
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            const SizedBox(height: 20),
-            const Center(child: Text('תובנות', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold))),
-            const SizedBox(height: 24),
-            _buildInsightCardIcon(Icons.star_outline_rounded, 'ממוצע שבועי', 'מצב הרוח הממוצע שלך השבוע: טוב', AppColors.success),
-            _buildInsightCardIcon(Icons.trending_up_rounded, 'מגמה חיובית', 'את מרגישה טוב יותר מהשבוע שעבר', AppColors.primary),
-            _buildInsightCardIcon(Icons.bedtime_outlined, 'השפעת שינה', 'בימים שישנת טוב - מצב הרוח היה טוב יותר', AppColors.info),
-            _buildInsightCardIcon(Icons.people_outline_rounded, 'קשר חברתי', 'מפגשים עם חברות שיפרו את מצב הרוח', const Color(0xFFD1C2D3)),
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+                ),
+                const SizedBox(height: 20),
+                const Center(child: Text('תובנות', style: TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold))),
+                const SizedBox(height: 24),
+                _buildInsightCardIcon(Icons.star_outline_rounded, 'ממוצע שבועי', avgLabel, AppColors.success),
+                _buildInsightCardIcon(Icons.trending_up_rounded, 'מגמה', trendDesc, AppColors.primary),
+                _buildInsightCardIcon(Icons.tag_rounded, 'תגיות נפוצות', topTagDesc, AppColors.info),
+                _buildInsightCardIcon(Icons.bar_chart_rounded, 'סיכום', countDesc, const Color(0xFFD1C2D3)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

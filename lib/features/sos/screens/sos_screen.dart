@@ -1,8 +1,11 @@
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/features/chat/screens/chat_screen.dart';
+import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/app_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// מסך SOS חירום - עזרה מיידית מהקהילה
@@ -16,8 +19,8 @@ class SOSScreen extends StatefulWidget {
 class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   bool _sosActive = false;
-  int _respondersCount = 0;
-  Timer? _responseTimer;
+  String? _activeAlertId;
+  String _selectedCategoryLabel = '';
 
   final List<Map<String, dynamic>> _sosCategories = [
     {'icon': Icons.medical_services, 'label': 'חירום רפואי', 'color': AppColors.error, 'desc': 'מצב רפואי דחוף לתינוק/ילד'},
@@ -26,13 +29,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     {'icon': Icons.directions_car, 'label': 'צריכה הסעה', 'color': AppColors.info, 'desc': 'צריכה להגיע דחוף למקום'},
     {'icon': Icons.shopping_basket, 'label': 'חסר לי משהו דחוף', 'color': AppColors.success, 'desc': 'חסרה לי חיתול/פורמולה/תרופה'},
     {'icon': Icons.help_outline, 'label': 'עזרה אחרת', 'color': AppColors.primary, 'desc': 'כל בקשה אחרת שדורשת עזרה מיידית'},
-  ];
-
-  final List<Map<String, dynamic>> _nearbyHelpers = [
-    {'name': 'מיכל לוי', 'distance': '200 מטר', 'rating': 4.9, 'responses': 23},
-    {'name': 'יעל כהן', 'distance': '350 מטר', 'rating': 4.8, 'responses': 15},
-    {'name': 'נועה שמש', 'distance': '500 מטר', 'rating': 5.0, 'responses': 31},
-    {'name': 'דנה אברהם', 'distance': '700 מטר', 'rating': 4.7, 'responses': 8},
   ];
 
   @override
@@ -47,7 +43,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pulseController.dispose();
-    _responseTimer?.cancel();
     super.dispose();
   }
 
@@ -129,7 +124,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_nearbyHelpers.length} אמהות באזורך זמינות עכשיו',
+                  'אמהות מהקהילה זמינות לעזור',
                   style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary, fontSize: 14),
                 ),
               ],
@@ -246,7 +241,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Active SOS
+          // Active SOS status
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -284,24 +279,27 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'שלחנו התראה ל-${_nearbyHelpers.length} אמהות באזורך',
+                  'קטגוריה: $_selectedCategoryLabel',
                   style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.people, color: AppColors.success),
-                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.info),
+                      ),
+                      SizedBox(width: 12),
                       Text(
-                        '$_respondersCount אמהות הגיבו',
-                        style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.success, fontSize: 18),
+                        'ממתינה לעזרה מהקהילה...',
+                        style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.info, fontSize: 16),
                       ),
                     ],
                   ),
@@ -311,62 +309,44 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 20),
 
-          // Nearby helpers responding
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Text('מגיבות באזורך', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 12),
-          ...(_nearbyHelpers.take(_respondersCount).map((helper) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                    child: Text(helper['name'].toString().substring(0, 1),
-                      style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(helper['name'], style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold)),
-                        Row(
-                          children: [
-                            Icon(Icons.location_on, size: 14, color: AppColors.textHint),
-                            Text(' ${helper['distance']}', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
-                            const SizedBox(width: 10),
-                            Icon(Icons.star, size: 14, color: AppColors.accent),
-                            Text(' ${helper['rating']}', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
-                          ],
+          // Helpful info while waiting
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('בינתיים...', style: TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Text(
+                  'הבקשה שלך נרשמה במערכת ואמהות מהקהילה יוכלו לראות אותה. אם מדובר במצב רפואי דחוף, התקשרי גם למד"א 101.',
+                  style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+                        },
+                        icon: const Icon(Icons.chat, size: 18),
+                        label: const Text('פתחי צ\'אט', style: TextStyle(fontFamily: 'Heebo')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    child: const Text('צ\'אט', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
-                  ),
-                ],
-              ),
-            );
-          })),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -374,9 +354,10 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
   void _showSOSConfirmation(Map<String, dynamic> category) {
     HapticFeedback.heavyImpact();
+    final messageController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
@@ -389,6 +370,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
+              controller: messageController,
               maxLines: 3,
               textDirection: TextDirection.rtl,
               style: const TextStyle(fontFamily: 'Heebo'),
@@ -410,13 +392,16 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo')),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              _activateSOS();
+              Navigator.pop(dialogContext);
+              _activateSOS(
+                category: category['label'] as String,
+                message: messageController.text,
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('שלחי SOS', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
@@ -426,36 +411,65 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _activateSOS() {
+  Future<void> _activateSOS({required String category, required String message}) async {
     HapticFeedback.heavyImpact();
+    final appState = Provider.of<AppState>(context, listen: false);
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final user = appState.currentUser;
+
     setState(() {
       _sosActive = true;
-      _respondersCount = 0;
+      _selectedCategoryLabel = category;
     });
 
-    // Simulate responses coming in
-    _responseTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (mounted && _respondersCount < _nearbyHelpers.length) {
-        HapticFeedback.mediumImpact();
-        setState(() => _respondersCount++);
-      } else {
-        timer.cancel();
+    try {
+      final alertId = await fs.createSosAlert({
+        'userId': user?.id ?? 'anonymous',
+        'userName': user?.fullName ?? 'אנונימית',
+        'category': category,
+        'message': message,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      if (mounted) {
+        setState(() => _activeAlertId = alertId);
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה בשליחת SOS: $e', style: const TextStyle(fontFamily: 'Heebo')),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() => _sosActive = false);
+      }
+    }
   }
 
-  void _cancelSOS() {
-    _responseTimer?.cancel();
+  Future<void> _cancelSOS() async {
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+
+    if (_activeAlertId != null) {
+      try {
+        await fs.closeSosAlert(_activeAlertId!);
+      } catch (e) {
+        debugPrint('Error closing SOS alert: $e');
+      }
+    }
+
     setState(() {
       _sosActive = false;
-      _respondersCount = 0;
+      _activeAlertId = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('בקשת ה-SOS בוטלה', style: TextStyle(fontFamily: 'Heebo')),
-        backgroundColor: AppColors.info,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('בקשת ה-SOS בוטלה', style: TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.info,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

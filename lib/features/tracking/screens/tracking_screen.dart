@@ -26,9 +26,10 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    // Initialize tracking service
+    // Initialize tracking service scoped to the current user
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TrackingService>().init();
+      final userId = context.read<AppState>().currentUser?.id;
+      context.read<TrackingService>().init(userId: userId);
     });
   }
 

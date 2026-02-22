@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/core/widgets/common_widgets.dart';
@@ -7,6 +9,8 @@ import 'package:mom_connect/core/widgets/dialog_widgets.dart';
 import 'package:mom_connect/models/feature_flag_model.dart';
 import 'package:mom_connect/services/branding_config_service.dart';
 import 'package:mom_connect/services/feature_flag_service.dart';
+import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/features/feed/screens/feed_screen.dart';
 import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
 import 'package:mom_connect/features/events/screens/events_screen.dart';
@@ -1322,7 +1326,8 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
   bool _isPoll = false;
   bool _isAnonymous = false;
   String _selectedCategory = 'general';
-  String? _selectedImage;
+  String? _selectedImagePath;
+  String? _selectedImageName;
   bool _isLoading = false;
 
   @override
@@ -1338,36 +1343,86 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
   }
 
   Future<void> _pickImage() async {
-    // Image picker simulation - in real app would use image_picker package
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _isLoading = false);
-    
-    // Show a simulated image selection for demo purposes
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('בחירת תמונה - יש לחבר את ספריית image_picker', style: TextStyle(fontFamily: 'Heebo')),
-        backgroundColor: AppColors.info,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _selectedImagePath = image.path;
+          _selectedImageName = image.name;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('שגיאה בבחירת תמונה', style: TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _removeImage() {
-    setState(() => _selectedImage = null);
+    setState(() {
+      _selectedImagePath = null;
+      _selectedImageName = null;
+    });
   }
 
-  void _submitPost() {
-    if (_contentController.text.isEmpty && _selectedImage == null) return;
-    
+  Future<void> _submitPost() async {
+    if (_contentController.text.isEmpty && _selectedImagePath == null) return;
+
     setState(() => _isLoading = true);
-    
-    // Simulate post submission
-    Future.delayed(const Duration(milliseconds: 800), () {
+
+    try {
+      final fs = Provider.of<FirestoreService>(context, listen: false);
+      final appState = Provider.of<AppState>(context, listen: false);
+      final currentUser = appState.currentUser;
+      final content = _contentController.text.trim();
+
+      // Upload image to Firebase Storage if selected
+      String? imageUrl;
+      if (_selectedImagePath != null) {
+        final storageService = StorageService();
+        imageUrl = await storageService.uploadImage(
+          filePath: _selectedImagePath!,
+          folder: 'posts/${currentUser?.id ?? 'anonymous'}',
+          customFileName: _selectedImageName,
+        );
+      }
+
+      // Prepare post data
+      final postData = <String, dynamic>{
+        'content': content,
+        'authorName': _isAnonymous ? 'אנונימית' : (currentUser?.fullName ?? 'משתמשת'),
+        'authorImage': '',
+        'category': _selectedCategory,
+        'isAnonymous': _isAnonymous,
+        'isPoll': _isPoll,
+        'likes': 0,
+        'comments': 0,
+        'isPinned': false,
+        'reportCount': 0,
+        'creatorId': currentUser?.id ?? '',
+        'creatorName': currentUser?.fullName ?? '',
+        'creatorEmail': currentUser?.email ?? '',
+        'creatorPhone': currentUser?.phone ?? '',
+      };
+
+      if (imageUrl != null) {
+        postData['images'] = [imageUrl];
+        postData['imageName'] = _selectedImageName ?? '';
+      }
+
+      await fs.addPost(postData);
+
       if (!mounted) return;
       setState(() => _isLoading = false);
       Navigator.pop(context);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_isPoll ? 'הסקר פורסם!' : 'הפוסט פורסם!', style: const TextStyle(fontFamily: 'Heebo')),
@@ -1376,12 +1431,23 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('שגיאה בפרסום הפוסט', style: TextStyle(fontFamily: 'Heebo')),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canSubmit = _contentController.text.isNotEmpty || _selectedImage != null;
+    final canSubmit = _contentController.text.isNotEmpty || _selectedImagePath != null;
     
     return Column(
       children: [
@@ -1452,7 +1518,7 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
-                if (_selectedImage != null) ...[
+                if (_selectedImagePath != null) ...[
                   const SizedBox(height: 16),
                   _buildImagePreview(),
                 ],
@@ -1547,8 +1613,8 @@ class _QuickPostSheetState extends State<_QuickPostSheet> {
             width: double.infinity,
             height: 200,
             color: AppColors.surfaceVariant,
-            child: _selectedImage != null
-              ? Image.network(_selectedImage!, fit: BoxFit.cover)
+            child: _selectedImagePath != null
+              ? Image.file(File(_selectedImagePath!), fit: BoxFit.cover)
               : const Center(child: Icon(Icons.image_rounded, size: 50, color: AppColors.textHint)),
           ),
         ),

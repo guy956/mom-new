@@ -6,8 +6,15 @@ import 'package:mom_connect/models/user_model.dart';
 
 /// שירות מעקב - ניהול CRUD מלא עם שמירה ב-Hive
 class TrackingService extends ChangeNotifier {
-  static const String _childrenBoxName = 'tracking_children';
-  static const String _recordsBoxName = 'tracking_records';
+  static const String _childrenBoxBaseName = 'tracking_children';
+  static const String _recordsBoxBaseName = 'tracking_records';
+
+  /// Resolved box names (prefixed with userId after init)
+  String _childrenBoxName = 'tracking_children';
+  String _recordsBoxName = 'tracking_records';
+
+  /// The userId this service is scoped to
+  String? _userId;
 
   List<ChildProfile> _children = [];
   List<TrackingRecord> _records = [];
@@ -17,15 +24,29 @@ class TrackingService extends ChangeNotifier {
   List<TrackingRecord> get records => _records;
   bool get isInitialized => _isInitialized;
 
-  Future<void> init() async {
+  /// Initialize with a [userId] to scope Hive boxes per user.
+  /// If [userId] is null or empty, falls back to global box names.
+  Future<void> init({String? userId}) async {
+    // If re-initializing for a different user, close old boxes and reset
+    if (_isInitialized && userId != _userId) {
+      _children = [];
+      _records = [];
+      _isInitialized = false;
+    }
     if (_isInitialized) return;
+
+    _userId = userId;
+    if (userId != null && userId.isNotEmpty) {
+      _childrenBoxName = '${userId}_$_childrenBoxBaseName';
+      _recordsBoxName = '${userId}_$_recordsBoxBaseName';
+    } else {
+      _childrenBoxName = _childrenBoxBaseName;
+      _recordsBoxName = _recordsBoxBaseName;
+    }
+
     await Hive.openBox<String>(_childrenBoxName);
     await Hive.openBox<String>(_recordsBoxName);
     _loadFromHive();
-    if (_children.isEmpty) {
-      _seedDemoData();
-      _saveAllToHive();
-    }
     _isInitialized = true;
     notifyListeners();
   }
@@ -224,236 +245,14 @@ class TrackingService extends ChangeNotifier {
     return growthRecords.isNotEmpty ? growthRecords.first : null;
   }
 
-  // ===== Demo data seed =====
-  void _seedDemoData() {
-    final now = DateTime.now();
-
-    // Add demo children
-    final noahId = 'child_noah';
-    final eitanId = 'child_eitan';
-
-    _children = [
-      ChildProfile(
-        id: noahId,
-        name: 'נועה',
-        birthDate: DateTime(2022, 3, 10),
-        gender: 'female',
-      ),
-      ChildProfile(
-        id: eitanId,
-        name: 'איתן',
-        birthDate: DateTime(2024, 1, 5),
-        gender: 'male',
-      ),
-    ];
-
-    _records = [];
-
-    // --- Growth records for Noa ---
-    final growthData = [
-      {'m': 0, 'w': 3.5, 'h': 50.0, 'hc': 35.0},
-      {'m': 1, 'w': 4.3, 'h': 54.0, 'hc': 37.0},
-      {'m': 3, 'w': 5.8, 'h': 60.0, 'hc': 40.0},
-      {'m': 6, 'w': 7.8, 'h': 66.0, 'hc': 43.0},
-      {'m': 9, 'w': 9.2, 'h': 70.0, 'hc': 44.5},
-      {'m': 12, 'w': 10.3, 'h': 74.0, 'hc': 45.5},
-      {'m': 15, 'w': 11.1, 'h': 78.0, 'hc': 46.0},
-      {'m': 18, 'w': 11.8, 'h': 81.0, 'hc': 46.5},
-      {'m': 22, 'w': 12.2, 'h': 84.0, 'hc': 47.0},
-    ];
-    for (final g in growthData) {
-      final months = g['m'] as int;
-      _records.add(TrackingRecord(
-        id: 'growth_noah_$months',
-        childId: noahId,
-        type: TrackingType.growth,
-        dateTime: DateTime(2022, 3 + months, 10),
-        data: {
-          'weight': g['w'],
-          'height': g['h'],
-          'headCircumference': g['hc'],
-        },
-        notes: months == 22 ? 'בדיקת שגרה אצל רופא' : null,
-      ));
-    }
-
-    // --- Sleep records (today + recent) ---
-    _records.add(TrackingRecord(
-      id: 'sleep_noah_1',
-      childId: noahId,
-      type: TrackingType.sleep,
-      dateTime: DateTime(now.year, now.month, now.day, 20, 30),
-      data: {
-        'sleepType': 'nightSleep',
-        'sleepEnd': DateTime(now.year, now.month, now.day + 1, 7, 0).toIso8601String(),
-      },
-      notes: 'נרדמה מהר',
-    ));
-    _records.add(TrackingRecord(
-      id: 'sleep_noah_2',
-      childId: noahId,
-      type: TrackingType.sleep,
-      dateTime: DateTime(now.year, now.month, now.day, 10, 0),
-      data: {
-        'sleepType': 'nap',
-        'sleepEnd': DateTime(now.year, now.month, now.day, 11, 30).toIso8601String(),
-      },
-    ));
-    _records.add(TrackingRecord(
-      id: 'sleep_noah_3',
-      childId: noahId,
-      type: TrackingType.sleep,
-      dateTime: DateTime(now.year, now.month, now.day, 15, 0),
-      data: {
-        'sleepType': 'nap',
-        'sleepEnd': DateTime(now.year, now.month, now.day, 15, 30).toIso8601String(),
-      },
-    ));
-
-    // past days sleep data
-    for (int i = 1; i <= 6; i++) {
-      final d = now.subtract(Duration(days: i));
-      final nightH = 9.0 + (i % 3);
-      final napH = 1.0 + (i % 2) * 0.5;
-      _records.add(TrackingRecord(
-        id: 'sleep_noah_night_$i',
-        childId: noahId,
-        type: TrackingType.sleep,
-        dateTime: DateTime(d.year, d.month, d.day, 20, 0),
-        data: {
-          'sleepType': 'nightSleep',
-          'sleepEnd': DateTime(d.year, d.month, d.day, 20 + nightH.toInt(), ((nightH % 1) * 60).toInt()).toIso8601String(),
-        },
-      ));
-      _records.add(TrackingRecord(
-        id: 'sleep_noah_nap_$i',
-        childId: noahId,
-        type: TrackingType.sleep,
-        dateTime: DateTime(d.year, d.month, d.day, 13, 0),
-        data: {
-          'sleepType': 'nap',
-          'sleepEnd': DateTime(d.year, d.month, d.day, 13 + napH.toInt(), ((napH % 1) * 60).toInt()).toIso8601String(),
-        },
-      ));
-    }
-
-    // --- Feeding records today ---
-    _records.addAll([
-      TrackingRecord(
-        id: 'feed_noah_1',
-        childId: noahId,
-        type: TrackingType.feeding,
-        dateTime: DateTime(now.year, now.month, now.day, 7, 30),
-        data: {'feedingType': 'breastfeeding', 'durationMinutes': 20, 'breastSide': 'שמאל + ימין'},
-      ),
-      TrackingRecord(
-        id: 'feed_noah_2',
-        childId: noahId,
-        type: TrackingType.feeding,
-        dateTime: DateTime(now.year, now.month, now.day, 9, 0),
-        data: {'feedingType': 'solid', 'foodDetails': 'דייסה + פירות'},
-        notes: 'אכלה טוב',
-      ),
-      TrackingRecord(
-        id: 'feed_noah_3',
-        childId: noahId,
-        type: TrackingType.feeding,
-        dateTime: DateTime(now.year, now.month, now.day, 12, 0),
-        data: {'feedingType': 'bottle', 'amountMl': 120.0},
-      ),
-      TrackingRecord(
-        id: 'feed_noah_4',
-        childId: noahId,
-        type: TrackingType.feeding,
-        dateTime: DateTime(now.year, now.month, now.day, 13, 0),
-        data: {'feedingType': 'solid', 'foodDetails': 'ירקות + עוף'},
-      ),
-      TrackingRecord(
-        id: 'feed_noah_5',
-        childId: noahId,
-        type: TrackingType.feeding,
-        dateTime: DateTime(now.year, now.month, now.day, 15, 30),
-        data: {'feedingType': 'water', 'amountMl': 50.0},
-      ),
-    ]);
-
-    // --- Diaper records today ---
-    for (int i = 0; i < 6; i++) {
-      _records.add(TrackingRecord(
-        id: 'diaper_noah_$i',
-        childId: noahId,
-        type: TrackingType.diaper,
-        dateTime: DateTime(now.year, now.month, now.day, 6 + i * 3, 0),
-        data: {'diaperType': i % 3 == 0 ? 'both' : (i % 2 == 0 ? 'wet' : 'dirty')},
-      ));
-    }
-
-    // --- Milestones ---
-    _records.addAll([
-      TrackingRecord(
-        id: 'mile_noah_1',
-        childId: noahId,
-        type: TrackingType.milestone,
-        dateTime: now.subtract(const Duration(days: 14)),
-        data: {'milestoneName': 'הליכה עצמאית', 'milestoneCategory': 'grossMotor', 'milestoneStatus': 'achieved'},
-        notes: 'התחילה ללכת בלי עזרה!',
-      ),
-      TrackingRecord(
-        id: 'mile_noah_2',
-        childId: noahId,
-        type: TrackingType.milestone,
-        dateTime: now.subtract(const Duration(days: 30)),
-        data: {'milestoneName': 'אומרת "אמא"', 'milestoneCategory': 'language', 'milestoneStatus': 'achieved'},
-      ),
-      TrackingRecord(
-        id: 'mile_noah_3',
-        childId: noahId,
-        type: TrackingType.milestone,
-        dateTime: now.subtract(const Duration(days: 3)),
-        data: {'milestoneName': 'אוכלת עם כפית', 'milestoneCategory': 'fineMotor', 'milestoneStatus': 'inProgress'},
-      ),
-      TrackingRecord(
-        id: 'mile_noah_4',
-        childId: noahId,
-        type: TrackingType.milestone,
-        dateTime: now,
-        data: {'milestoneName': 'משחקת עם ילדים', 'milestoneCategory': 'social', 'milestoneStatus': 'expected'},
-      ),
-    ]);
-
-    // --- Health records ---
-    _records.addAll([
-      TrackingRecord(
-        id: 'health_noah_1',
-        childId: noahId,
-        type: TrackingType.health,
-        dateTime: now.subtract(const Duration(days: 7)),
-        data: {'healthType': 'doctor_visit', 'healthDetails': 'בדיקת שגרה - הכל תקין'},
-      ),
-      TrackingRecord(
-        id: 'health_noah_2',
-        childId: noahId,
-        type: TrackingType.health,
-        dateTime: now.subtract(const Duration(days: 21)),
-        data: {'healthType': 'fever', 'temperature': 38.5, 'healthDetails': 'טופלה בפרצטמול'},
-      ),
-      TrackingRecord(
-        id: 'health_noah_3',
-        childId: noahId,
-        type: TrackingType.health,
-        dateTime: now.subtract(const Duration(days: 60)),
-        data: {'healthType': 'vaccine', 'healthDetails': 'חיסון משושה - 18 חודשים'},
-      ),
-      TrackingRecord(
-        id: 'health_noah_4',
-        childId: noahId,
-        type: TrackingType.health,
-        dateTime: now.subtract(const Duration(days: 90)),
-        data: {'healthType': 'allergy', 'healthDetails': 'תגובה קלה לחלב - עברה'},
-      ),
-    ]);
-
-    // Sort all records
-    _records.sort((a, b) => b.dateTime.compareTo(a.dateTime));
-  }
+  // ===== Demo data seed (disabled - kept for reference) =====
+  // void _seedDemoData() {
+  //   // Demo data seeding has been removed from production.
+  //   // New users now start with an empty tracking screen.
+  //   // The demo data previously created fake children (נועה, איתן)
+  //   // and sample records for growth, sleep, feeding, diapers,
+  //   // milestones, and health. It was called on first launch when
+  //   // _children.isEmpty. This is no longer needed since the app
+  //   // syncs real children from the user's profile.
+  // }
 }

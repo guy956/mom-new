@@ -905,6 +905,81 @@ class FirestoreService extends ChangeNotifier {
   };
 
   // ════════════════════════════════════════════════════════════════
+  //  SOS ALERTS
+  // ════════════════════════════════════════════════════════════════
+
+  Future<String> createSosAlert(Map<String, dynamic> data) async {
+    final docRef = await _db.collection('sos_alerts').add({
+      ...data,
+      'status': 'active',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+  }
+
+  Future<void> closeSosAlert(String alertId) =>
+      _db.collection('sos_alerts').doc(alertId).update({
+        'status': 'closed',
+        'closedAt': FieldValue.serverTimestamp(),
+      });
+
+  Stream<List<Map<String, dynamic>>> get activeSosAlertsStream =>
+      _db.collection('sos_alerts')
+          .where('status', isEqualTo: 'active')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  // ════════════════════════════════════════════════════════════════
+  //  MOOD TRACKING
+  // ════════════════════════════════════════════════════════════════
+
+  Future<void> saveMoodEntry(Map<String, dynamic> data) =>
+      _db.collection('mood_entries').add({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+  Stream<List<Map<String, dynamic>>> moodEntriesStream(String userId) =>
+      _db.collection('mood_entries')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .limit(30)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  // ════════════════════════════════════════════════════════════════
+  //  TRACKING DATA (per-user, private)
+  // ════════════════════════════════════════════════════════════════
+
+  /// Save or update a tracking child profile for a specific user
+  Future<void> saveTrackingChild(String userId, Map<String, dynamic> data) =>
+      _db.collection('users').doc(userId).collection('tracking_children').doc(data['id']).set({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+  /// Stream of tracking children for a specific user
+  Stream<List<Map<String, dynamic>>> trackingChildrenStream(String userId) =>
+      _db.collection('users').doc(userId).collection('tracking_children')
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Save a new tracking record for a specific user
+  Future<void> saveTrackingRecord(String userId, Map<String, dynamic> data) =>
+      _db.collection('users').doc(userId).collection('tracking_records').add({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+  /// Stream of tracking records for a specific user, ordered by creation time descending
+  Stream<List<Map<String, dynamic>>> trackingRecordsStream(String userId) =>
+      _db.collection('users').doc(userId).collection('tracking_records')
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  // ════════════════════════════════════════════════════════════════
   //  SEED INITIAL DATA
   // ════════════════════════════════════════════════════════════════
 
@@ -1072,6 +1147,168 @@ class FirestoreService extends ChangeNotifier {
   static Map<String, bool> get defaultModerationSettings => Map.from(_defaultModerationSettings);
   static Map<String, dynamic> get defaultUIConfig => Map.from(_defaultUIConfig);
   static Map<String, dynamic> get defaultAnnouncement => Map.from(_defaultAnnouncement);
+
+  // ════════════════════════════════════════════════════════════════
+  //  SAVED ITEMS (user favorites)
+  // ════════════════════════════════════════════════════════════════
+
+  /// Get saved item IDs for a user
+  Future<Set<String>> getSavedItemIds(String userId) async {
+    final snap = await _db.collection('users').doc(userId)
+        .collection('savedItems').get();
+    return snap.docs.map((d) => d.id).toSet();
+  }
+
+  /// Save an item for a user
+  Future<void> saveItem(String userId, String itemId) =>
+      _db.collection('users').doc(userId)
+          .collection('savedItems').doc(itemId).set({
+        'savedAt': FieldValue.serverTimestamp(),
+      });
+
+  /// Remove a saved item for a user
+  Future<void> unsaveItem(String userId, String itemId) =>
+      _db.collection('users').doc(userId)
+          .collection('savedItems').doc(itemId).delete();
+
+  // ════════════════════════════════════════════════════════════════
+  //  BOOKINGS CRUD
+  // ════════════════════════════════════════════════════════════════
+
+  /// Create a booking for an expert
+  Future<void> createBooking(Map<String, dynamic> data) async {
+    await _db.collection('bookings').add({
+      ...data,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Stream of bookings for a specific user
+  Stream<List<Map<String, dynamic>>> userBookingsStream(String userId) =>
+      _db.collection('bookings')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  // ════════════════════════════════════════════════════════════════
+  //  DIRECT MESSAGES (DM) CRUD
+  // ════════════════════════════════════════════════════════════════
+
+  /// Stream of DM conversations for a specific user, ordered by last message time
+  Stream<List<Map<String, dynamic>>> dmConversationsStream(String userId) =>
+      _db.collection('directMessages')
+          .where('participants', arrayContains: userId)
+          .orderBy('lastMessageAt', descending: true)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Create a new DM conversation between two users
+  Future<String> createDirectMessage({
+    required String fromUserId,
+    required String fromUserName,
+    required String toUserId,
+    required String toUserName,
+    String? fromAvatar,
+    String? toAvatar,
+  }) async {
+    // Check if conversation already exists between these two users
+    final existing = await _db.collection('directMessages')
+        .where('participants', arrayContains: fromUserId)
+        .get();
+    for (final doc in existing.docs) {
+      final participants = List<String>.from(doc.data()['participants'] ?? []);
+      if (participants.contains(toUserId)) {
+        return doc.id; // Return existing conversation
+      }
+    }
+
+    final docRef = await _db.collection('directMessages').add({
+      'participants': [fromUserId, toUserId],
+      'participantNames': {fromUserId: fromUserName, toUserId: toUserName},
+      'participantAvatars': {fromUserId: fromAvatar, toUserId: toAvatar},
+      'lastMessage': '',
+      'lastMessageAt': FieldValue.serverTimestamp(),
+      'lastMessageBy': fromUserId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+  }
+
+  /// Stream of messages in a DM conversation
+  Stream<List<Map<String, dynamic>>> dmMessagesStream(String conversationId) =>
+      _db.collection('directMessages').doc(conversationId)
+          .collection('messages')
+          .orderBy('createdAt', descending: false)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Send a message in a DM conversation
+  Future<void> sendDirectMessage({
+    required String conversationId,
+    required String senderId,
+    required String text,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+    await _db.collection('directMessages').doc(conversationId)
+        .collection('messages').add({
+      'senderId': senderId,
+      'text': text,
+      'createdAt': now,
+    });
+    // Update conversation's last message
+    await _db.collection('directMessages').doc(conversationId).update({
+      'lastMessage': text,
+      'lastMessageAt': now,
+      'lastMessageBy': senderId,
+    });
+  }
+
+  /// Delete a DM conversation and all its messages
+  Future<void> deleteDirectMessage(String conversationId) async {
+    // Delete all messages in the subcollection
+    final msgs = await _db.collection('directMessages').doc(conversationId)
+        .collection('messages').get();
+    final batch = _db.batch();
+    for (final doc in msgs.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(_db.collection('directMessages').doc(conversationId));
+    await batch.commit();
+  }
+
+  /// Stream of messages in a chat group
+  Stream<List<Map<String, dynamic>>> groupMessagesStream(String groupId) =>
+      _db.collection('chatGroups').doc(groupId)
+          .collection('messages')
+          .orderBy('createdAt', descending: false)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Send a message in a chat group
+  Future<void> sendGroupMessage({
+    required String groupId,
+    required String senderId,
+    required String senderName,
+    required String text,
+  }) async {
+    final now = FieldValue.serverTimestamp();
+    await _db.collection('chatGroups').doc(groupId)
+        .collection('messages').add({
+      'senderId': senderId,
+      'senderName': senderName,
+      'text': text,
+      'createdAt': now,
+    });
+    // Update group's last message
+    await _db.collection('chatGroups').doc(groupId).update({
+      'lastMessage': '$senderName: $text',
+      'lastMessageAt': now,
+      'updatedAt': now,
+    });
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  CHAT GROUPS CRUD

@@ -437,16 +437,56 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   final date = DateTime.now().add(Duration(days: selectedDateIndex));
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('התור נקבע עם ${expert['name']} ב-${date.day}/${date.month} בשעה $selectedTime', style: const TextStyle(fontFamily: 'Heebo')),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  final appState = Provider.of<AppState>(context, listen: false);
+                  final fs = Provider.of<FirestoreService>(context, listen: false);
+                  final currentUser = appState.currentUser;
+
+                  if (currentUser == null || currentUser.id.isEmpty) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('יש להתחבר כדי לקבוע תור', style: TextStyle(fontFamily: 'Heebo')),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await fs.createBooking({
+                      'userId': currentUser.id,
+                      'userName': currentUser.fullName,
+                      'expertId': expert['id'] ?? '',
+                      'expertName': expert['name'] ?? '',
+                      'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+                      'time': selectedTime,
+                    });
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('בקשת תור נשלחה ל${expert['name']} ב-${date.day}/${date.month} בשעה $selectedTime', style: const TextStyle(fontFamily: 'Heebo')),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('שגיאה בקביעת תור: $e', style: const TextStyle(fontFamily: 'Heebo')),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,

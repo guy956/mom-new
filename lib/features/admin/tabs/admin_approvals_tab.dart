@@ -818,118 +818,9 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
               ),
             ),
           // Creator contact information (admin only)
-          if (creatorId != null)
-            FutureBuilder<Map<String, dynamic>?>(
-              future: _getUserData(creatorId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data == null) {
-                  return const SizedBox.shrink();
-                }
-
-                final userData = snapshot.data!;
-                final email = userData['email'] as String?;
-                final phone = userData['phone'] as String?;
-
-                if (email == null && phone == null) {
-                  return const SizedBox.shrink();
-                }
-
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF9E6),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.admin_panel_settings,
-                            size: 16,
-                            color: Colors.orange[700],
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'פרטי קשר - למנהלת בלבד',
-                            style: TextStyle(
-                              fontFamily: 'Heebo',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (email != null || phone != null) ...[
-                        const SizedBox(height: 8),
-                        if (email != null)
-                          InkWell(
-                            onTap: () => _launchUrl('mailto:$email'),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.email_outlined,
-                                    size: 16,
-                                    color: Colors.grey[700],
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      email,
-                                      style: TextStyle(
-                                        fontFamily: 'Heebo',
-                                        fontSize: 13,
-                                        color: Colors.blue[700],
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        if (phone != null)
-                          InkWell(
-                            onTap: () => _launchUrl('tel:$phone'),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.phone_outlined,
-                                    size: 16,
-                                    color: Colors.grey[700],
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      phone,
-                                      style: TextStyle(
-                                        fontFamily: 'Heebo',
-                                        fontSize: 13,
-                                        color: Colors.blue[700],
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
+          // First try to read creatorEmail/creatorPhone directly from the content document,
+          // then fall back to fetching from the users collection if not available.
+          _buildCreatorContactSection(item, creatorId),
           const SizedBox(height: 12),
           if (!isProcessed)
             Container(
@@ -982,6 +873,146 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  /// Build the creator contact info section.
+  /// Reads creatorEmail/creatorPhone from the content document first,
+  /// then falls back to the users collection if those fields are empty.
+  Widget _buildCreatorContactSection(Map<String, dynamic> item, String? creatorId) {
+    final docEmail = item['creatorEmail'] as String?;
+    final docPhone = item['creatorPhone'] as String?;
+    final hasDocContact = (docEmail != null && docEmail.isNotEmpty) ||
+        (docPhone != null && docPhone.isNotEmpty);
+
+    // If the content document already has contact info, use it directly
+    if (hasDocContact) {
+      return _buildContactInfoWidget(
+        email: (docEmail != null && docEmail.isNotEmpty) ? docEmail : null,
+        phone: (docPhone != null && docPhone.isNotEmpty) ? docPhone : null,
+      );
+    }
+
+    // Otherwise, fall back to fetching from the users collection
+    if (creatorId == null) return const SizedBox.shrink();
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _getUserData(creatorId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox.shrink();
+        }
+
+        final userData = snapshot.data!;
+        final email = userData['email'] as String?;
+        final phone = userData['phone'] as String?;
+
+        if (email == null && phone == null) {
+          return const SizedBox.shrink();
+        }
+
+        return _buildContactInfoWidget(email: email, phone: phone);
+      },
+    );
+  }
+
+  /// Shared widget that renders the admin-only contact info box.
+  Widget _buildContactInfoWidget({String? email, String? phone}) {
+    if (email == null && phone == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF9E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.admin_panel_settings,
+                size: 16,
+                color: Colors.orange[700],
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'פרטי קשר - למנהלת בלבד',
+                style: TextStyle(
+                  fontFamily: 'Heebo',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange[700],
+                ),
+              ),
+            ],
+          ),
+          if (email != null || phone != null) ...[
+            const SizedBox(height: 8),
+            if (email != null)
+              InkWell(
+                onTap: () => _launchUrl('mailto:$email'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.email_outlined,
+                        size: 16,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          email,
+                          style: TextStyle(
+                            fontFamily: 'Heebo',
+                            fontSize: 13,
+                            color: Colors.blue[700],
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (phone != null)
+              InkWell(
+                onTap: () => _launchUrl('tel:$phone'),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.phone_outlined,
+                        size: 16,
+                        color: Colors.grey[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          phone,
+                          style: TextStyle(
+                            fontFamily: 'Heebo',
+                            fontSize: 13,
+                            color: Colors.blue[700],
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
