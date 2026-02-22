@@ -91,6 +91,9 @@ flutter.log
 flutter2.log
 *.log
 
+# Cloudflare Wrangler
+.wrangler/
+
 # Node.js / API
 /api/node_modules/
 /api/.env
