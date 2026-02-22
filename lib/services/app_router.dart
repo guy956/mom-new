@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:mom_connect/features/auth/screens/welcome_screen.dart';
 import 'package:mom_connect/features/auth/screens/login_screen.dart';
 import 'package:mom_connect/features/auth/screens/register_screen.dart';
@@ -6,6 +7,7 @@ import 'package:mom_connect/features/home/screens/main_screen.dart';
 import 'package:mom_connect/features/chat/screens/chat_screen.dart';
 import 'package:mom_connect/features/ai_chat/screens/ai_chat_screen.dart';
 import 'package:mom_connect/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:mom_connect/services/app_state.dart';
 
 // Global navigator key for navigation without context
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -76,10 +78,22 @@ class AppRouter {
           return _buildPageRoute(const MainScreen(), settings);
         case chat:
           return _buildPageRoute(const ChatScreen(), settings);
-        // case aiChat: // TODO: Implement AiChatScreen
-        //   return _buildPageRoute(const AiChatScreen(), settings);
+        case aiChat:
+          return _buildPageRoute(const AiChatScreen(), settings);
         case admin:
-          return _buildPageRoute(const AdminDashboardScreen(), settings);
+          return _buildPageRoute(
+            Builder(builder: (context) {
+              final appState = Provider.of<AppState>(context, listen: false);
+              if (!appState.isLoggedIn || !appState.isAdmin) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Navigator.of(context).pushReplacementNamed(home);
+                });
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              return const AdminDashboardScreen();
+            }),
+            settings,
+          );
         
         // TODO: Implement these screens when needed
         // case feed:

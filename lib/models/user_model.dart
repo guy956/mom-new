@@ -145,42 +145,6 @@ class UserModel {
     );
   }
 
-  /// פרופיל דמו לבדיקות
-  static UserModel demo() {
-    return UserModel(
-      id: 'demo_user_1',
-      email: 'demo@example.com',
-      phone: '050-1234567',
-      fullName: 'שרה כהן',
-      profileImage: 'https://i.pravatar.cc/150?img=1',
-      bio: 'אמא לשני ילדים מקסימים 💕 אוהבת לבלות, לבשל ולקרוא',
-      city: 'תל אביב',
-      maritalStatus: 'נשואה',
-      profession: 'מעצבת גרפית',
-      children: [
-        ChildModel.demo(),
-        ChildModel(
-          id: 'child_2',
-          name: 'נועה',
-          birthDate: DateTime(2022, 3, 15),
-          gender: Gender.female,
-        ),
-      ],
-      createdAt: DateTime(2023, 1, 15),
-      lastLoginAt: DateTime.now(),
-      isVerified: true,
-      isOnline: true,
-      stats: UserStats(
-        postsCount: 45,
-        commentsCount: 156,
-        likesReceived: 892,
-        rating: 4.8,
-        followersCount: 234,
-        followingCount: 156,
-      ),
-      interests: ['הנקה', 'שינה', 'מתכונים', 'טיולים', 'יצירה'],
-    );
-  }
 }
 
 /// מודל ילד
@@ -294,31 +258,6 @@ class ChildModel {
     );
   }
 
-  static ChildModel demo() {
-    return ChildModel(
-      id: 'child_1',
-      name: 'יונתן',
-      birthDate: DateTime(2024, 1, 10),
-      gender: Gender.male,
-      profileImage: 'https://i.pravatar.cc/100?img=50',
-      birthWeight: 3.2,
-      birthHeight: 50,
-      growthRecords: [
-        GrowthRecord(
-          date: DateTime(2024, 2, 10),
-          weight: 4.5,
-          height: 54,
-          headCircumference: 38,
-        ),
-        GrowthRecord(
-          date: DateTime(2024, 3, 10),
-          weight: 5.8,
-          height: 58,
-          headCircumference: 40,
-        ),
-      ],
-    );
-  }
 }
 
 /// מין הילד
