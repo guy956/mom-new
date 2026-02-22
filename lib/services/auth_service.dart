@@ -77,18 +77,24 @@ class JwtService {
     _accessSecret = dotenv.env['JWT_ACCESS_SECRET'];
     _refreshSecret = dotenv.env['JWT_REFRESH_SECRET'];
 
-    // Validate secrets are set - use fallback for development if missing
+    // Validate secrets are set - generate cryptographically random fallback if missing
     if (_accessSecret == null || _accessSecret!.isEmpty || _accessSecret!.length < 32) {
-      debugPrint('[JwtService] Warning: JWT_ACCESS_SECRET missing or too short, using generated fallback');
-      _accessSecret = 'momit_dev_access_secret_${DateTime.now().millisecondsSinceEpoch}_padding_chars_here';
+      debugPrint('[JwtService] Warning: JWT_ACCESS_SECRET missing or too short, using random fallback');
+      _accessSecret = _generateRandomSecret();
     }
     if (_refreshSecret == null || _refreshSecret!.isEmpty || _refreshSecret!.length < 32) {
-      debugPrint('[JwtService] Warning: JWT_REFRESH_SECRET missing or too short, using generated fallback');
-      _refreshSecret = 'momit_dev_refresh_secret_${DateTime.now().millisecondsSinceEpoch}_padding_chars_here';
+      debugPrint('[JwtService] Warning: JWT_REFRESH_SECRET missing or too short, using random fallback');
+      _refreshSecret = _generateRandomSecret();
     }
 
     _initialized = true;
     debugPrint('[JwtService] Initialized with secure secrets from environment');
+  }
+
+  static String _generateRandomSecret() {
+    final random = Random.secure();
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
+    return List.generate(64, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
   String get _accessSecretKey {
@@ -952,14 +958,24 @@ class AuthService with RateLimitMixin {
     }
   }
 
-  /// Log user activity
+  /// Log user activity to Firestore audit trail
   Future<void> logUserActivity({
     required String email,
     required String activityType,
     String? details,
   }) async {
-    // Activity logging implementation
     debugPrint('[AuthService] Activity: $email - $activityType - $details');
+    try {
+      await FirebaseFirestore.instance.collection('activity_log').add({
+        'email': email,
+        'activityType': activityType,
+        'details': details,
+        'timestamp': FieldValue.serverTimestamp(),
+        'platform': kIsWeb ? 'web' : 'mobile',
+      });
+    } catch (e) {
+      debugPrint('[AuthService] Failed to log activity: $e');
+    }
   }
 
   /// Convert stored user data to UserModel

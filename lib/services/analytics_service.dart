@@ -601,6 +601,17 @@ class AnalyticsService extends ChangeNotifier {
   // EXPORT FUNCTIONALITY
   // ════════════════════════════════════════════════════════════════
 
+  /// Sanitize a value for CSV to prevent formula injection
+  String _csvSafe(dynamic value) {
+    final s = (value ?? '').toString();
+    if (s.isEmpty) return '';
+    // Prefix cells starting with formula characters to prevent CSV injection
+    if (s.startsWith('=') || s.startsWith('+') || s.startsWith('-') || s.startsWith('@') || s.startsWith('\t') || s.startsWith('\r')) {
+      return "'$s";
+    }
+    return s;
+  }
+
   /// Export data to CSV format
   Future<String> exportToCsv({
     required String dataType,
@@ -621,10 +632,10 @@ class AnalyticsService extends ChangeNotifier {
         for (final doc in snapshot.docs) {
           final data = doc.data();
           buffer.writeln(
-            '${doc.id},'
-            '"${data['email'] ?? ''}",'
-            '"${data['fullName'] ?? ''}",'
-            '${data['status'] ?? 'active'},'
+            '${_csvSafe(doc.id)},'
+            '"${_csvSafe(data['email'])}",'
+            '"${_csvSafe(data['fullName'])}",'
+            '${_csvSafe(data['status'] ?? 'active')},'
             '${_formatDate(data['createdAt'])},'
             '${_formatDate(data['lastActive'])}'
           );
@@ -633,22 +644,22 @@ class AnalyticsService extends ChangeNotifier {
 
       case 'activity':
         buffer.writeln('User ID,Action,Feature,Timestamp,Metadata');
-        
+
         final snapshot = await _db
           .collection('analytics_events')
           .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
           .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(range.end))
           .orderBy('timestamp', descending: true)
           .get();
-        
+
         for (final doc in snapshot.docs) {
           final data = doc.data();
           buffer.writeln(
-            '${data['userId']},'
-            '${data['action']},'
-            '${data['feature'] ?? ''},'
+            '${_csvSafe(data['userId'])},'
+            '${_csvSafe(data['action'])},'
+            '${_csvSafe(data['feature'])},'
             '${_formatDate(data['timestamp'])},'
-            '"${jsonEncode(data['metadata'] ?? {})}"'
+            '"${_csvSafe(jsonEncode(data['metadata'] ?? {}))}"'
           );
         }
         break;

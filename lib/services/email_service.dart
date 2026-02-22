@@ -17,7 +17,7 @@ class EmailService {
   String? get _sendGridApiKey => dotenv.env['SENDGRID_API_KEY'];
 
   /// Admin email address to receive notifications
-  String get _adminEmail => dotenv.env['ADMIN_EMAILS']?.split(',').first.trim() ?? 'ola.cos85@gmail.com';
+  String? get _adminEmail => dotenv.env['ADMIN_EMAILS']?.split(',').first.trim();
 
   /// Send notification email to admin
   ///
@@ -37,6 +37,12 @@ class EmailService {
       // Check if SendGrid API key is configured
       if (_sendGridApiKey == null || _sendGridApiKey!.isEmpty) {
         debugPrint('[EmailService] SendGrid API key not configured - skipping email');
+        return false;
+      }
+
+      // Check if admin email is configured
+      if (_adminEmail == null || _adminEmail!.isEmpty) {
+        debugPrint('[EmailService] Admin email not configured - skipping email');
         return false;
       }
 

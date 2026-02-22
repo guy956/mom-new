@@ -7,6 +7,13 @@ import 'package:path/path.dart' as path;
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  static const _allowedImageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'};
+  static const _mimeTypes = {
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+    '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic',
+  };
+  static const int _maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+
   /// Upload an image file to Firebase Storage
   /// Returns the download URL of the uploaded file
   Future<String> uploadImage({
@@ -18,15 +25,31 @@ class StorageService {
       // Create file reference
       final File file = File(filePath);
       final String fileName = customFileName ?? path.basename(filePath);
+      final String ext = path.extension(fileName).toLowerCase();
+
+      // Validate file extension
+      if (!_allowedImageExtensions.contains(ext)) {
+        throw Exception('File type $ext is not allowed. Allowed: ${_allowedImageExtensions.join(', ')}');
+      }
+
+      // Validate file size
+      if (!kIsWeb) {
+        final fileSize = await file.length();
+        if (fileSize > _maxFileSizeBytes) {
+          throw Exception('File too large (${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB). Maximum: ${_maxFileSizeBytes ~/ 1024 ~/ 1024} MB');
+        }
+      }
+
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fullPath = '$folder/${timestamp}_$fileName';
+      final String contentType = _mimeTypes[ext] ?? 'image/jpeg';
 
       // Upload file
       final Reference ref = _storage.ref().child(fullPath);
       final UploadTask uploadTask = ref.putFile(
         file,
         SettableMetadata(
-          contentType: 'image/jpeg',
+          contentType: contentType,
           customMetadata: {
             'uploadedAt': DateTime.now().toIso8601String(),
           },
