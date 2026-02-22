@@ -94,7 +94,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 16),
           child: ElevatedButton(
-            onPressed: _contentController.text.isNotEmpty || _isPoll ? _publishPost : null,
+            onPressed: _contentController.text.isNotEmpty ? _publishPost : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               disabledBackgroundColor: AppColors.surfaceVariant,
