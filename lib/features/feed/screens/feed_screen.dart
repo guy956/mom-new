@@ -36,6 +36,7 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() { if (!_tabController.indexIsChanging) setState(() {}); });
     timeago.setLocaleMessages('he', timeago.HeMessages());
     _loadSavedItems();
   }
@@ -119,15 +120,28 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
       }).toList();
     }
 
-    // Sort: pinned first, then by date
-    filtered.sort((a, b) {
-      final aPinned = a['isPinned'] == true ? 1 : 0;
-      final bPinned = b['isPinned'] == true ? 1 : 0;
-      if (aPinned != bPinned) return bPinned.compareTo(aPinned);
-      final aTime = _parseTimestamp(a['createdAt']);
-      final bTime = _parseTimestamp(b['createdAt']);
-      return bTime.compareTo(aTime);
-    });
+    // Tab-based sorting: 0=Popular, 1=New, 2=Local, 3=Following
+    final tabIndex = _tabController.index;
+    if (tabIndex == 0) {
+      // Popular: sort by likes descending, then date
+      filtered.sort((a, b) {
+        final aPinned = a['isPinned'] == true ? 1 : 0;
+        final bPinned = b['isPinned'] == true ? 1 : 0;
+        if (aPinned != bPinned) return bPinned.compareTo(aPinned);
+        final aLikes = (a['likes'] ?? 0) as int;
+        final bLikes = (b['likes'] ?? 0) as int;
+        if (aLikes != bLikes) return bLikes.compareTo(aLikes);
+        return _parseTimestamp(b['createdAt']).compareTo(_parseTimestamp(a['createdAt']));
+      });
+    } else {
+      // New (1), Local (2), Following (3): sort by date descending
+      filtered.sort((a, b) {
+        final aPinned = a['isPinned'] == true ? 1 : 0;
+        final bPinned = b['isPinned'] == true ? 1 : 0;
+        if (aPinned != bPinned) return bPinned.compareTo(aPinned);
+        return _parseTimestamp(b['createdAt']).compareTo(_parseTimestamp(a['createdAt']));
+      });
+    }
 
     return filtered;
   }
