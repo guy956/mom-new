@@ -53,15 +53,17 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
       final engagement = await _analyticsService.getContentEngagement(_selectedRange);
       final revenue = await _analyticsService.getRevenueStats(_selectedRange);
       
-      setState(() {
-        _userGrowthData = growth;
-        _featureUsageData = features;
-        _engagementData = engagement;
-        _revenueData = revenue;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userGrowthData = growth;
+          _featureUsageData = features;
+          _engagementData = engagement;
+          _revenueData = revenue;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       debugPrint('Error loading analytics data: $e');
     }
   }
