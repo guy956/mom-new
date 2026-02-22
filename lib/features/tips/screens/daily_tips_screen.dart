@@ -526,17 +526,7 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
           // ── Content ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              content,
-              style: const TextStyle(
-                fontFamily: 'Heebo',
-                fontSize: 14,
-                height: 1.6,
-                color: AppColors.textPrimary,
-              ),
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: _ExpandableText(content: content),
           ),
 
           const SizedBox(height: 12),
@@ -769,6 +759,55 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Expandable text widget for tip content
+class _ExpandableText extends StatefulWidget {
+  final String content;
+  const _ExpandableText({required this.content});
+
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _expanded = !_expanded),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.content,
+            style: const TextStyle(
+              fontFamily: 'Heebo',
+              fontSize: 14,
+              height: 1.6,
+              color: AppColors.textPrimary,
+            ),
+            maxLines: _expanded ? null : 5,
+            overflow: _expanded ? null : TextOverflow.ellipsis,
+          ),
+          if (widget.content.length > 200 && !_expanded)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'קראי עוד...',
+                style: TextStyle(
+                  fontFamily: 'Heebo',
+                  fontSize: 13,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
