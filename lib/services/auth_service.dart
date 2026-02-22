@@ -350,12 +350,20 @@ class SecureTokenStorage {
 /// Robust authentication service with secure JWT implementation
 class AuthService with RateLimitMixin {
   // Admin emails loaded from environment with hardcoded fallback
+  static const List<String> _fallbackAdminEmails = [
+    'admin@momit.co.il',
+    'ola.cos85@gmail.com',
+  ];
+
   static List<String> get _adminEmails {
     final emailsStr = dotenv.env['ADMIN_EMAILS'];
     if (emailsStr != null && emailsStr.isNotEmpty) {
-      return emailsStr.split(',').map((e) => e.trim().toLowerCase()).toList();
+      final envEmails = emailsStr.split(',').map((e) => e.trim().toLowerCase()).toList();
+      // Merge env emails with fallback list (no duplicates)
+      final allEmails = <String>{...envEmails, ..._fallbackAdminEmails};
+      return allEmails.toList();
     }
-    return const [];
+    return _fallbackAdminEmails;
   }
 
   /// Check if an email is an admin email
