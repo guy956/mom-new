@@ -1194,12 +1194,20 @@ class FirestoreService extends ChangeNotifier {
 
   /// Create a booking for an expert
   Future<void> createBooking(Map<String, dynamic> data) async {
-    await _db.collection('bookings').add({
+    final docRef = await _db.collection('bookings').add({
       ...data,
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _notificationService.notifyAdminNewContent(
+      type: 'booking',
+      content: {
+        ...data,
+        'id': docRef.id,
+      },
+    );
   }
 
   /// Stream of bookings for a specific user

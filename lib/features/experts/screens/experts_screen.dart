@@ -242,7 +242,12 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
               CircleAvatar(
                 radius: 30,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                child: const Icon(Icons.person, color: AppColors.primary, size: 30),
+                backgroundImage: (expert['imageUrl'] ?? expert['photoUrl'] ?? '').toString().isNotEmpty
+                    ? NetworkImage((expert['imageUrl'] ?? expert['photoUrl']).toString())
+                    : null,
+                child: (expert['imageUrl'] ?? expert['photoUrl'] ?? '').toString().isEmpty
+                    ? const Icon(Icons.person, color: AppColors.primary, size: 30)
+                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -314,16 +319,26 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
               if (phone.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.phone_outlined, color: AppColors.primary, size: 20),
-                  onPressed: () {
-                    launchUrl(Uri.parse('tel:$phone'));
+                  onPressed: () async {
+                    final success = await launchUrl(Uri.parse('tel:$phone'));
+                    if (!success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('לא ניתן לחייג ל-$phone')),
+                      );
+                    }
                   },
                   tooltip: phone,
                 ),
               if (email.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.email_outlined, color: AppColors.primary, size: 20),
-                  onPressed: () {
-                    launchUrl(Uri.parse('mailto:$email'));
+                  onPressed: () async {
+                    final success = await launchUrl(Uri.parse('mailto:$email'));
+                    if (!success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('לא ניתן לשלוח מייל ל-$email')),
+                      );
+                    }
                   },
                   tooltip: email,
                 ),
