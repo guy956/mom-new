@@ -1047,14 +1047,22 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      GestureDetector(
-                        onTap: () => _showEditRecordSheet(record),
-                        child: Icon(Icons.edit, size: 16, color: AppColors.info.withValues(alpha: 0.7)),
+                      Semantics(
+                        label: 'עריכת רשומת $typeLabel',
+                        button: true,
+                        child: GestureDetector(
+                          onTap: () => _showEditRecordSheet(record),
+                          child: Icon(Icons.edit, size: 16, color: AppColors.info.withValues(alpha: 0.7)),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => _confirmDelete(context, record, service),
-                        child: Icon(Icons.delete_outline, size: 16, color: AppColors.error.withValues(alpha: 0.7)),
+                      Semantics(
+                        label: 'מחיקת רשומת $typeLabel',
+                        button: true,
+                        child: GestureDetector(
+                          onTap: () => _confirmDelete(context, record, service),
+                          child: Icon(Icons.delete_outline, size: 16, color: AppColors.error.withValues(alpha: 0.7)),
+                        ),
                       ),
                     ],
                   ),
