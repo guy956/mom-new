@@ -211,9 +211,17 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           const SizedBox(width: 10),
           Expanded(child: Text(name, style: const TextStyle(fontFamily: 'Heebo', fontSize: 14))),
           GestureDetector(
-            onTap: () {
-              final phoneNumber = number.replaceAll('*', '');
-              launchUrl(Uri.parse('tel:$phoneNumber'));
+            onTap: () async {
+              final success = await launchUrl(Uri.parse('tel:$number'));
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('לא ניתן לחייג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -383,9 +391,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.location_on, size: 16, color: AppColors.success),
+                Icon(Icons.security, size: 16, color: AppColors.info),
                 const SizedBox(width: 4),
-                Text('המיקום שלך ישותף אוטומטית', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
+                Text('הבקשה תשלח לקהילה ולמנהלת', style: TextStyle(fontFamily: 'Heebo', fontSize: 12, color: AppColors.textHint)),
               ],
             ),
           ],
@@ -417,21 +425,19 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     final fs = Provider.of<FirestoreService>(context, listen: false);
     final user = appState.currentUser;
 
-    setState(() {
-      _sosActive = true;
-      _selectedCategoryLabel = category;
-    });
-
     try {
       final alertId = await fs.createSosAlert({
         'userId': user?.id ?? 'anonymous',
         'userName': user?.fullName ?? 'אנונימית',
         'category': category,
         'message': message,
-        'timestamp': DateTime.now().toIso8601String(),
       });
       if (mounted) {
-        setState(() => _activeAlertId = alertId);
+        setState(() {
+          _sosActive = true;
+          _selectedCategoryLabel = category;
+          _activeAlertId = alertId;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -442,7 +448,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        setState(() => _sosActive = false);
       }
     }
   }
@@ -453,23 +458,35 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     if (_activeAlertId != null) {
       try {
         await fs.closeSosAlert(_activeAlertId!);
+        if (mounted) {
+          setState(() {
+            _sosActive = false;
+            _activeAlertId = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('בקשת ה-SOS בוטלה', style: TextStyle(fontFamily: 'Heebo')),
+              backgroundColor: AppColors.info,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       } catch (e) {
-        debugPrint('Error closing SOS alert: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('שגיאה בביטול SOS: $e - הבקשה עדיין פעילה', style: const TextStyle(fontFamily: 'Heebo')),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
-    }
-
-    setState(() {
-      _sosActive = false;
-      _activeAlertId = null;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('בקשת ה-SOS בוטלה', style: TextStyle(fontFamily: 'Heebo')),
-          backgroundColor: AppColors.info,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    } else {
+      setState(() {
+        _sosActive = false;
+        _activeAlertId = null;
+      });
     }
   }
 }
