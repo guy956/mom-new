@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/services/firestore_service.dart';
@@ -36,6 +37,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
 
   String _formatDate(dynamic date) {
     if (date == null) return '';
+    if (date is Timestamp) return _formatDate(date.toDate());
     if (date is DateTime) {
       return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     }
@@ -592,7 +594,9 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
         TextEditingController(text: existingEvent?['creatorPhone'] ?? '');
 
     DateTime? selectedDate;
-    if (existingEvent?['date'] is DateTime) {
+    if (existingEvent?['date'] is Timestamp) {
+      selectedDate = (existingEvent!['date'] as Timestamp).toDate();
+    } else if (existingEvent?['date'] is DateTime) {
       selectedDate = existingEvent!['date'] as DateTime;
     }
 
@@ -785,7 +789,8 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
 
                   // Validate email if provided
                   final emailValue = emailController.text.trim();
-                  if (emailValue.isNotEmpty && !emailValue.contains('@')) {
+                  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                  if (emailValue.isNotEmpty && !emailRegex.hasMatch(emailValue)) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(content: Text('כתובת אימייל לא תקינה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: Colors.red),
                     );

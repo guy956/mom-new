@@ -9,7 +9,6 @@ import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/features/home/screens/main_screen.dart';
 import 'package:mom_connect/core/widgets/empty_state_widgets.dart';
 import 'package:mom_connect/core/widgets/loading_widgets.dart';
-import 'package:mom_connect/core/widgets/dialog_widgets.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -701,6 +700,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     final phoneCtrl = TextEditingController(text: appState.currentUser?.phone ?? '');
     String selectedType = 'workshop';
     final otherTypeCtrl = TextEditingController();
+    DateTime? selectedEventDate;
+    TimeOfDay? selectedEventTime;
 
     showModalBottomSheet(
       context: context,
@@ -797,6 +798,81 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                             fillColor: AppColors.surfaceVariant,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('תאריך ושעה *', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: selectedEventDate ?? DateTime.now().add(const Duration(days: 1)),
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                                    locale: const Locale('he'),
+                                  );
+                                  if (picked != null) {
+                                    setSheetState(() => selectedEventDate = picked);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceVariant,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        selectedEventDate != null
+                                            ? '${selectedEventDate!.day.toString().padLeft(2, '0')}/${selectedEventDate!.month.toString().padLeft(2, '0')}/${selectedEventDate!.year}'
+                                            : 'בחר תאריך',
+                                        style: TextStyle(fontFamily: 'Heebo', color: selectedEventDate != null ? AppColors.textPrimary : AppColors.textHint),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final picked = await showTimePicker(
+                                    context: ctx,
+                                    initialTime: selectedEventTime ?? const TimeOfDay(hour: 10, minute: 0),
+                                  );
+                                  if (picked != null) {
+                                    setSheetState(() => selectedEventTime = picked);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceVariant,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.access_time_rounded, size: 18, color: AppColors.primary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        selectedEventTime != null
+                                            ? '${selectedEventTime!.hour.toString().padLeft(2, '0')}:${selectedEventTime!.minute.toString().padLeft(2, '0')}'
+                                            : 'בחר שעה',
+                                        style: TextStyle(fontFamily: 'Heebo', color: selectedEventTime != null ? AppColors.textPrimary : AppColors.textHint),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         const Text('סוג אירוע', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600)),
@@ -901,7 +977,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
 
                               // Validate email
                               final emailValue = emailCtrl.text.trim();
-                              if (emailValue.isEmpty || !emailValue.contains('@')) {
+                              final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                              if (emailValue.isEmpty || !emailRegex.hasMatch(emailValue)) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('נא להזין כתובת אימייל תקינה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
                                 );
@@ -918,6 +995,14 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 return;
                               }
 
+                              // Validate date
+                              if (selectedEventDate == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('נא לבחור תאריך לאירוע', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                                );
+                                return;
+                              }
+
                               // Get current user info for organizer
                               final user = appState.currentUser;
                               final userName = user?.fullName ?? '';
@@ -928,7 +1013,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 'title': titleCtrl.text.trim(),
                                 'description': descCtrl.text.trim(),
                                 'location': locationCtrl.text.trim(),
-                                'type': selectedType,
+                                'type': selectedType == 'other' ? otherTypeCtrl.text.trim() : selectedType,
                                 'organizer': userName,
                                 'creatorEmail': emailValue,
                                 'creatorPhone': phoneValue,
@@ -937,8 +1022,16 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 'status': 'pending',
                                 'attendees': 0,
                                 'maxAttendees': 50,
-                                'date': DateTime.now(),
-                                'time': '',
+                                'date': DateTime(
+                                  selectedEventDate!.year,
+                                  selectedEventDate!.month,
+                                  selectedEventDate!.day,
+                                  selectedEventTime?.hour ?? 10,
+                                  selectedEventTime?.minute ?? 0,
+                                ),
+                                'time': selectedEventTime != null
+                                    ? '${selectedEventTime!.hour.toString().padLeft(2, '0')}:${selectedEventTime!.minute.toString().padLeft(2, '0')}'
+                                    : '',
                               });
 
                               if (ctx.mounted) Navigator.pop(ctx);
@@ -1161,56 +1254,80 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                       const SizedBox(height: 24),
                     ],
 
-                    // Register button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: hasAvailableSpots
-                            ? () async {
-                                HapticFeedback.mediumImpact();
-                                try {
-                                  final appState = Provider.of<AppState>(context, listen: false);
-                                  final currentUserId = appState.currentUser?.id ?? '';
-                                  final fs = Provider.of<FirestoreService>(context, listen: false);
+                    // Register/Unregister button
+                    Builder(
+                      builder: (btnContext) {
+                        final appState = Provider.of<AppState>(context, listen: false);
+                        final currentUserId = appState.currentUser?.id ?? '';
+                        final participantIds = List<String>.from(event['participantIds'] ?? []);
+                        final isRegistered = participantIds.contains(currentUserId);
 
-                                  // Register user for event
-                                  await fs.updateEvent(event['id'], {
-                                    'attendees': FieldValue.increment(1),
-                                    'participantIds': FieldValue.arrayUnion([currentUserId]),
-                                  });
+                        return SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (isRegistered || hasAvailableSpots)
+                                ? () async {
+                                    HapticFeedback.mediumImpact();
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    try {
+                                      final fs = Provider.of<FirestoreService>(context, listen: false);
 
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('נרשמת לאירוע "${event['title']}" בהצלחה!', style: const TextStyle(fontFamily: 'Heebo')),
-                                      backgroundColor: AppColors.success,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                  );
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('שגיאה בהרשמה: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
-                                      backgroundColor: AppColors.error,
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                  );
-                                }
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: AppColors.surfaceVariant,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: Text(
-                          hasAvailableSpots ? 'הרשמה לאירוע' : 'האירוע מלא',
-                          style: const TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ),
+                                      if (isRegistered) {
+                                        // Unregister
+                                        await fs.updateEvent(event['id'], {
+                                          'attendees': FieldValue.increment(-1),
+                                          'participantIds': FieldValue.arrayRemove([currentUserId]),
+                                        });
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('ביטלת הרשמה לאירוע "${event['title']}"', style: const TextStyle(fontFamily: 'Heebo')),
+                                            backgroundColor: AppColors.info,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        );
+                                      } else {
+                                        // Register
+                                        await fs.updateEvent(event['id'], {
+                                          'attendees': FieldValue.increment(1),
+                                          'participantIds': FieldValue.arrayUnion([currentUserId]),
+                                        });
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text('נרשמת לאירוע "${event['title']}" בהצלחה!', style: const TextStyle(fontFamily: 'Heebo')),
+                                            backgroundColor: AppColors.success,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('שגיאה: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
+                                          backgroundColor: AppColors.error,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isRegistered ? AppColors.error : AppColors.primary,
+                              disabledBackgroundColor: AppColors.surfaceVariant,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: Text(
+                              isRegistered ? 'ביטול הרשמה' : (hasAvailableSpots ? 'הרשמה לאירוע' : 'האירוע מלא'),
+                              style: const TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1567,61 +1684,75 @@ class _EventCard extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: hasAvailableSpots
-                          ? () async {
-                              HapticFeedback.mediumImpact();
-                              try {
-                                final appState = Provider.of<AppState>(context, listen: false);
-                                final currentUserId = appState.currentUser?.id ?? '';
-                                final fs = Provider.of<FirestoreService>(context, listen: false);
+                  Builder(
+                    builder: (btnContext) {
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      final currentUserId = appState.currentUser?.id ?? '';
+                      final participantIds = List<String>.from(event['participantIds'] ?? []);
+                      final isRegistered = participantIds.contains(currentUserId);
 
-                                // Register user for event
-                                await fs.updateEvent(event['id'], {
-                                  'attendees': FieldValue.increment(1),
-                                  'participantIds': FieldValue.arrayUnion([currentUserId]),
-                                });
+                      return SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: (isRegistered || hasAvailableSpots)
+                              ? () async {
+                                  HapticFeedback.mediumImpact();
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  try {
+                                    final fs = Provider.of<FirestoreService>(context, listen: false);
 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('נרשמת לאירוע "$title" בהצלחה!', style: const TextStyle(fontFamily: 'Heebo')),
-                                    backgroundColor: AppColors.success,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                );
-                              } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('שגיאה בהרשמה: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
-                                    backgroundColor: AppColors.error,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                );
-                              }
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        disabledBackgroundColor: AppColors.surfaceVariant,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                                    if (isRegistered) {
+                                      await fs.updateEvent(event['id'], {
+                                        'attendees': FieldValue.increment(-1),
+                                        'participantIds': FieldValue.arrayRemove([currentUserId]),
+                                      });
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('ביטלת הרשמה לאירוע "$title"', style: const TextStyle(fontFamily: 'Heebo')),
+                                          backgroundColor: AppColors.info,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      );
+                                    } else {
+                                      await fs.updateEvent(event['id'], {
+                                        'attendees': FieldValue.increment(1),
+                                        'participantIds': FieldValue.arrayUnion([currentUserId]),
+                                      });
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('נרשמת לאירוע "$title" בהצלחה!', style: const TextStyle(fontFamily: 'Heebo')),
+                                          backgroundColor: AppColors.success,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('שגיאה: ${e.toString()}', style: const TextStyle(fontFamily: 'Heebo')),
+                                        backgroundColor: AppColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                  }
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isRegistered ? AppColors.error : AppColors.primary,
+                            disabledBackgroundColor: AppColors.surfaceVariant,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Text(
+                            isRegistered ? 'ביטול הרשמה' : (hasAvailableSpots ? 'הרשמה לאירוע' : 'האירוע מלא'),
+                            style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        hasAvailableSpots
-                            ? 'הרשמה לאירוע'
-                            : 'האירוע מלא',
-                        style: const TextStyle(
-                          fontFamily: 'Heebo',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
