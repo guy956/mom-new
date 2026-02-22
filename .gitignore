@@ -71,11 +71,12 @@ ios/Podfile.lock
 # /android/app/google-services.json
 # /ios/Runner/GoogleService-Info.plist
 
-# Environment variables
+# Environment variables and deployment secrets
 .env
 .env.local
 .env.production
 .env.staging
+.deployment_config
 
 # Build outputs
 *.apk
