@@ -7,6 +7,7 @@ import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/color_config.dart';
 import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/models/user_model.dart';
+import 'package:mom_connect/models/post_model.dart';
 import 'package:mom_connect/features/auth/screens/welcome_screen.dart';
 import 'package:mom_connect/services/auth_service.dart';
 import 'package:mom_connect/services/app_state.dart';
@@ -34,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     // Will be set from AppState in didChangeDependencies
-    _user = UserModel(id: '', email: '', fullName: '');
+    _user = UserModel(id: '', email: '', fullName: '', createdAt: DateTime.now());
   }
 
   bool _didSyncChildren = false;
