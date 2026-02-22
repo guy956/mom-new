@@ -324,8 +324,12 @@ class _AdminMediaVaultTabState extends State<AdminMediaVaultTab> {
               color: const Color(0xFFD1C2D3),
               tooltip: 'פתח',
               onPressed: () async {
-                final uri = Uri.parse(url);
-                if (await canLaunchUrl(uri)) await launchUrl(uri);
+                try {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) await launchUrl(uri);
+                } catch (e) {
+                  debugPrint('Failed to launch URL: $e');
+                }
               },
             ),
             IconButton(

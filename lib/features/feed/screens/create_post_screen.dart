@@ -4,6 +4,7 @@ import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/notification_service.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final String? initialType;
@@ -689,6 +690,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       // Create post in Firestore
       await firestoreService.addPost(postData);
+
+      // Send automatic email notification to admin
+      NotificationService().notifyAdminNewContent(
+        type: 'post',
+        content: postData,
+      );
 
       if (!mounted) return;
 

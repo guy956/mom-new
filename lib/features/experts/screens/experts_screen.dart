@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/app_state.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mom_connect/services/notification_service.dart';
 
 /// מסך מומחים - Real-time from Firestore
 class ExpertsScreen extends StatefulWidget {
@@ -471,14 +472,24 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                   }
 
                   try {
-                    await fs.createBooking({
+                    final bookingData = {
                       'userId': currentUser.id,
                       'userName': currentUser.fullName,
                       'expertId': expert['id'] ?? '',
                       'expertName': expert['name'] ?? '',
                       'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
                       'time': selectedTime,
-                    });
+                      'creatorName': currentUser.fullName,
+                      'creatorEmail': currentUser.email,
+                      'creatorPhone': currentUser.phone ?? '',
+                    };
+                    await fs.createBooking(bookingData);
+
+                    // Send automatic email notification to admin
+                    NotificationService().notifyAdminNewContent(
+                      type: 'expert',
+                      content: bookingData,
+                    );
 
                     if (context.mounted) {
                       Navigator.pop(context);

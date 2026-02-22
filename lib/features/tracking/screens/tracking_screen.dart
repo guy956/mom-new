@@ -1805,7 +1805,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                     _service.deleteChild(existing.id);
                     try {
                       context.read<AppState>().removeChild(existing.id);
-                    } catch (_) {}
+                    } catch (e) { debugPrint('[Tracking] Failed to remove child from AppState: $e'); }
                     if (_selectedChildIndex >= _service.children.length && _selectedChildIndex > 0) {
                       setState(() => _selectedChildIndex = _service.children.length - 1);
                     }
@@ -1837,7 +1837,7 @@ class _TrackingScreenState extends State<TrackingScreen> with SingleTickerProvid
                     } else {
                       appState.addChild(childModel);
                     }
-                  } catch (_) {}
+                  } catch (e) { debugPrint('[Tracking] Failed to sync child to AppState: $e'); }
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text('${isEdit ? "עודכן" : "נוסף"} בהצלחה! 🎉', style: const TextStyle(fontFamily: 'Heebo')),

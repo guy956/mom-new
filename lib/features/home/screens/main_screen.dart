@@ -121,9 +121,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   child: Row(children: [
                     const Icon(Icons.campaign_rounded, color: Colors.white, size: 20), const SizedBox(width: 10),
                     Expanded(child: Text(ann['text'] ?? '', style: const TextStyle(fontFamily: 'Heebo', fontSize: 13, color: Colors.white, fontWeight: FontWeight.w600))),
-                    if ((ann['link'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () {
-                      final link = ann['link'].toString();
-                      launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+                    if ((ann['link'] ?? '').toString().isNotEmpty) IconButton(icon: const Icon(Icons.open_in_new, color: Colors.white, size: 18), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () async {
+                      try {
+                        final link = ann['link'].toString();
+                        final uri = Uri.parse(link);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        debugPrint('Failed to launch URL: $e');
+                      }
                     }),
                   ]),
                 );

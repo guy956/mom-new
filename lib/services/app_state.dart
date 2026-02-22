@@ -188,7 +188,7 @@ class AppState extends ChangeNotifier {
         _featureFlags = Map<String, bool>.from(
           (jsonDecode(flagsJson) as Map).map((k, v) => MapEntry(k.toString(), v as bool))
         );
-      } catch (_) {}
+      } catch (e) { debugPrint('[AppState] Failed to parse feature flags cache: $e'); }
     }
 
     // Restore app config (from cache)
@@ -196,7 +196,7 @@ class AppState extends ChangeNotifier {
     if (configJson != null) {
       try {
         _appConfig = Map<String, dynamic>.from(jsonDecode(configJson));
-      } catch (_) {}
+      } catch (e) { debugPrint('[AppState] Failed to parse app config cache: $e'); }
     }
 
     // Restore announcement (from cache)
@@ -204,7 +204,7 @@ class AppState extends ChangeNotifier {
     if (annJson != null) {
       try {
         _announcement = Map<String, dynamic>.from(jsonDecode(annJson));
-      } catch (_) {}
+      } catch (e) { debugPrint('[AppState] Failed to parse announcement cache: $e'); }
     }
 
     // Restore UI config (from cache)
@@ -212,7 +212,7 @@ class AppState extends ChangeNotifier {
     if (uiJson != null) {
       try {
         _uiConfig = Map<String, dynamic>.from(jsonDecode(uiJson));
-      } catch (_) {}
+      } catch (e) { debugPrint('[AppState] Failed to parse UI config cache: $e'); }
     }
 
     // Restore text overrides (from cache)
@@ -220,7 +220,7 @@ class AppState extends ChangeNotifier {
     if (textJson != null) {
       try {
         _textOverrides = Map<String, dynamic>.from(jsonDecode(textJson));
-      } catch (_) {}
+      } catch (e) { debugPrint('[AppState] Failed to parse text overrides cache: $e'); }
     }
 
     // Bridge cached values to config classes

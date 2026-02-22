@@ -9,6 +9,7 @@ import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/features/home/screens/main_screen.dart';
 import 'package:mom_connect/core/widgets/empty_state_widgets.dart';
 import 'package:mom_connect/core/widgets/loading_widgets.dart';
+import 'package:mom_connect/services/notification_service.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -1009,7 +1010,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                               final userId = user?.id ?? '';
 
                               // Create event in Firestore
-                              await fs.createEvent({
+                              final eventData = {
                                 'title': titleCtrl.text.trim(),
                                 'description': descCtrl.text.trim(),
                                 'location': locationCtrl.text.trim(),
@@ -1032,7 +1033,14 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                                 'time': selectedEventTime != null
                                     ? '${selectedEventTime!.hour.toString().padLeft(2, '0')}:${selectedEventTime!.minute.toString().padLeft(2, '0')}'
                                     : '',
-                              });
+                              };
+                              await fs.createEvent(eventData);
+
+                              // Send automatic email notification to admin
+                              NotificationService().notifyAdminNewContent(
+                                type: 'event',
+                                content: eventData,
+                              );
 
                               if (ctx.mounted) Navigator.pop(ctx);
 

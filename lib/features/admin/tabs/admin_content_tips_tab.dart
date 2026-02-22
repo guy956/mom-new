@@ -232,8 +232,12 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                   const SizedBox(width: 8),
                   InkWell(
                     onTap: () async {
-                      final uri = Uri.parse(attachmentUrl);
-                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                      try {
+                        final uri = Uri.parse(attachmentUrl);
+                        if (await canLaunchUrl(uri)) await launchUrl(uri);
+                      } catch (e) {
+                        debugPrint('Failed to launch URL: $e');
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

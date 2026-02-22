@@ -864,7 +864,7 @@ class AuthService with RateLimitMixin {
   Future<void> clearAll() async {
     try {
       await fb_auth.FirebaseAuth.instance.signOut();
-    } catch (_) {}
+    } catch (e) { debugPrint('[AuthService] Firebase signOut failed: $e'); }
     if (kIsWeb) {
       SecureCookieManager.deleteSecureCookie('momit_session');
       SecureCookieManager.deleteSecureCookie('momit_user');

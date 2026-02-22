@@ -503,7 +503,16 @@ TextSpan _buildLinkifiedText(String text) {
     spans.add(TextSpan(
       text: matchText,
       style: linkStyle,
-      recognizer: TapGestureRecognizer()..onTap = () => launchUrl(Uri.parse(uri)),
+      recognizer: TapGestureRecognizer()..onTap = () async {
+        try {
+          final parsedUri = Uri.parse(uri);
+          if (await canLaunchUrl(parsedUri)) {
+            await launchUrl(parsedUri);
+          }
+        } catch (e) {
+          debugPrint('Failed to launch URL: $e');
+        }
+      },
     ));
     lastEnd = match.end;
   }

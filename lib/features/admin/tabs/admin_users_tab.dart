@@ -140,7 +140,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         final dt = ts is DateTime ? ts : ts.toDate();
         createdAt = '${dt.day}/${dt.month}/${dt.year}';
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[AdminUsers] Failed to parse user createdAt: $e'); }
 
     showDialog(
       context: context,
@@ -265,7 +265,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           final dt = ts is DateTime ? ts : ts.toDate();
           createdAt = '${dt.day}/${dt.month}/${dt.year}';
         }
-      } catch (_) {}
+      } catch (e) { debugPrint('[AdminUsers] Failed to parse createdAt: $e'); }
       buffer.writeln('$name,$email,$city,$status,$createdAt');
     }
     Clipboard.setData(ClipboardData(text: buffer.toString()));

@@ -7,6 +7,22 @@ import 'package:mom_connect/features/home/screens/main_screen.dart';
 import 'package:mom_connect/features/chat/screens/chat_screen.dart';
 import 'package:mom_connect/features/ai_chat/screens/ai_chat_screen.dart';
 import 'package:mom_connect/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:mom_connect/features/feed/screens/feed_screen.dart';
+import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
+import 'package:mom_connect/features/events/screens/events_screen.dart';
+import 'package:mom_connect/features/profile/screens/profile_screen.dart';
+import 'package:mom_connect/features/marketplace/screens/marketplace_screen.dart';
+import 'package:mom_connect/features/notifications/screens/notifications_screen.dart';
+import 'package:mom_connect/features/experts/screens/experts_screen.dart';
+import 'package:mom_connect/features/tips/screens/daily_tips_screen.dart';
+import 'package:mom_connect/features/sos/screens/sos_screen.dart';
+import 'package:mom_connect/features/album/screens/photo_album_screen.dart';
+import 'package:mom_connect/features/gamification/screens/gamification_screen.dart';
+import 'package:mom_connect/features/whatsapp/screens/whatsapp_screen.dart';
+import 'package:mom_connect/features/mood/screens/mood_tracker_screen.dart';
+import 'package:mom_connect/features/legal/screens/legal_screen.dart';
+import 'package:mom_connect/features/accessibility/screens/accessibility_screen.dart';
+import 'package:mom_connect/features/feed/screens/create_post_screen.dart';
 import 'package:mom_connect/services/app_state.dart';
 
 // Global navigator key for navigation without context
@@ -49,7 +65,10 @@ class AppRouter {
   static const String gamification = '/gamification';
   static const String whatsapp = '/whatsapp';
   static const String mood = '/mood';
-  
+  static const String legal = '/legal';
+  static const String accessibility = '/accessibility';
+  static const String createPost = '/feed/create';
+
   // Admin routes
   static const String admin = '/admin';
   static const String adminUsers = '/admin/users';
@@ -80,6 +99,41 @@ class AppRouter {
           return _buildPageRoute(const ChatScreen(), settings);
         case aiChat:
           return _buildPageRoute(const AIChatScreen(), settings);
+
+        // Feature routes
+        case feed:
+          return _buildPageRoute(const FeedScreen(), settings);
+        case tracking:
+          return _buildPageRoute(const TrackingScreen(), settings);
+        case events:
+          return _buildPageRoute(const EventsScreen(), settings);
+        case profile:
+          return _buildPageRoute(const ProfileScreen(), settings);
+        case marketplace:
+          return _buildPageRoute(const MarketplaceScreen(), settings);
+        case notifications:
+          return _buildPageRoute(const NotificationsScreen(), settings);
+        case experts:
+          return _buildPageRoute(const ExpertsScreen(), settings);
+        case tips:
+          return _buildPageRoute(const DailyTipsScreen(), settings);
+        case sos:
+          return _buildPageRoute(const SOSScreen(), settings);
+        case album:
+          return _buildPageRoute(const PhotoAlbumScreen(), settings);
+        case gamification:
+          return _buildPageRoute(const GamificationScreen(), settings);
+        case whatsapp:
+          return _buildPageRoute(const WhatsAppIntegrationScreen(), settings);
+        case mood:
+          return _buildPageRoute(const MoodTrackerScreen(), settings);
+        case legal:
+          return _buildPageRoute(const LegalScreen(), settings);
+        case accessibility:
+          return _buildPageRoute(const AccessibilityScreen(), settings);
+        case createPost:
+          return _buildPageRoute(const CreatePostScreen(), settings);
+
         case admin:
           return _buildPageRoute(
             Builder(builder: (context) {

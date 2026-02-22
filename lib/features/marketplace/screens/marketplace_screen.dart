@@ -10,6 +10,7 @@ import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/app_state.dart';
+import 'package:mom_connect/services/notification_service.dart';
 
 /// Marketplace screen - real-time Firestore data with dynamic categories
 class MarketplaceScreen extends StatefulWidget {
@@ -1444,6 +1445,12 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
 
       final firestoreService = Provider.of<FirestoreService>(context, listen: false);
       await firestoreService.addMarketplaceItem(itemData);
+
+      // Send automatic email notification to admin
+      NotificationService().notifyAdminNewContent(
+        type: 'marketplace',
+        content: itemData,
+      );
 
       if (!mounted) return;
       Navigator.pop(context);

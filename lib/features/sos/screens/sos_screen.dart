@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
-import 'package:mom_connect/features/chat/screens/chat_screen.dart';
+import 'package:mom_connect/services/app_router.dart';
 import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/notification_service.dart';
 import 'package:mom_connect/services/app_state.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -339,7 +340,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
+                          AppRouter.navigateTo(context, AppRouter.chat);
                         },
                         icon: const Icon(Icons.chat, size: 18),
                         label: const Text('פתחי צ\'אט', style: TextStyle(fontFamily: 'Heebo')),
@@ -426,12 +427,23 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     final user = appState.currentUser;
 
     try {
-      final alertId = await fs.createSosAlert({
+      final sosData = {
         'userId': user?.id ?? 'anonymous',
         'userName': user?.fullName ?? 'אנונימית',
         'category': category,
         'message': message,
-      });
+        'creatorName': user?.fullName ?? 'אנונימית',
+        'creatorEmail': user?.email ?? '',
+        'creatorPhone': user?.phone ?? '',
+      };
+      final alertId = await fs.createSosAlert(sosData);
+
+      // Send automatic urgent email notification to admin
+      NotificationService().notifyAdminNewContent(
+        type: 'report',
+        content: {...sosData, 'id': alertId, 'title': 'SOS - $category'},
+      );
+
       if (mounted) {
         setState(() {
           _sosActive = true;
