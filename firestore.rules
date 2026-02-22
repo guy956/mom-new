@@ -133,10 +133,11 @@ service cloud.firestore {
       allow write: if isAdmin(); // SECURITY: Only admins can modify roles
     }
 
-    // Activity log - admin only
+    // Activity log - admin only read, authenticated create own entries
     match /activity_log/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
     }
     
     // Push notifications - authenticated read own, admin write all
@@ -167,7 +168,8 @@ service cloud.firestore {
     match /directMessages/{convId} {
       allow read: if isAuthenticated() &&
         request.auth.uid in resource.data.participants;
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.auth.uid in request.resource.data.participants;
       allow update: if isAuthenticated() &&
         request.auth.uid in resource.data.participants;
       allow delete: if isAdmin();
@@ -200,9 +202,10 @@ service cloud.firestore {
         (resource.data.senderId == request.auth.uid || isAdmin());
     }
 
-    // SOS Alerts - authenticated create, admin/owner read
+    // SOS Alerts - authenticated create own, admin/owner read
     match /sos_alerts/{alertId} {
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
       allow read: if isAuthenticated();
       allow update: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
@@ -213,14 +216,16 @@ service cloud.firestore {
     match /mood_entries/{entryId} {
       allow read: if isAuthenticated() &&
         resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Bookings - owner and admin
     match /bookings/{bookingId} {
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
       allow read: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
       allow update: if isAdmin();
@@ -232,11 +237,12 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
     }
     
-    // Notifications - authenticated create, owner read
+    // Notifications - authenticated create own, owner read
     // Flat collection: each doc has a 'userId' field
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId is string;
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow delete: if isAdmin();
     }
@@ -248,11 +254,18 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // FCM tokens - owner write, admin read
+    // FCM tokens - owner write own tokens, admin read
     match /fcm_tokens/{tokenId} {
       allow read: if isAdmin();
-      allow create, update: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Analytics events - authenticated create, admin read
+    match /analytics_events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
     }
   }
 }

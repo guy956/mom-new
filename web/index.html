@@ -324,20 +324,6 @@
   </footer>
 
   <script>
-    // Clear old service worker caches on load
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (var name of names) { caches.delete(name); }
-      });
-    }
-
-    // Unregister any old service workers
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var reg of registrations) { reg.unregister(); }
-      });
-    }
-
     // Remove loading splash and legal footer when Flutter is ready
     window.addEventListener('flutter-first-frame', function() {
       var loader = document.getElementById('momit-loading');

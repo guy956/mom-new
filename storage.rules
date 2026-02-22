@@ -66,14 +66,18 @@ service firebase.storage {
 
     // DM chat attachments - participants only
     match /chat_attachments/dm/{convId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/directMessages/$(convId)).data.participants;
+      allow write: if isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/directMessages/$(convId)).data.participants;
     }
 
     // Group chat attachments - group members only
     match /chat_attachments/group/{groupId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/chatGroups/$(groupId)).data.members;
+      allow write: if isAuthenticated() &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/chatGroups/$(groupId)).data.members;
     }
     
     // Default deny all other paths
