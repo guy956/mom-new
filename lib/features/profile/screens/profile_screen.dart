@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/color_config.dart';
@@ -1247,13 +1248,23 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       }),
                     ]),
                     _buildSettingsSection('כללי', [
-                      _buildSettingsTile(Icons.language_outlined, 'שפה', trailing: const Text('עברית', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint))),
-                      _buildDarkModeTile(appState),
-                      _buildSettingsTile(Icons.help_outline, 'עזרה', onTap: () {
-                        Navigator.pop(context);
+                      _buildSettingsTile(Icons.language_outlined, 'שפה', trailing: const Text('עברית', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint)), onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('support@momconnect.co.il', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
+                          const SnackBar(content: Text('כרגע האפליקציה זמינה בעברית בלבד. שפות נוספות בקרוב!', style: TextStyle(fontFamily: 'Heebo')), behavior: SnackBarBehavior.floating),
                         );
+                      }),
+                      _buildDarkModeTile(appState),
+                      _buildSettingsTile(Icons.help_outline, 'עזרה', onTap: () async {
+                        Navigator.pop(context);
+                        final uri = Uri.parse('mailto:support@momit.co.il?subject=עזרה - מומית');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        } else {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('support@momit.co.il', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
+                          );
+                        }
                       }),
                       _buildSettingsTile(Icons.info_outline, 'אודות', onTap: () {
                         Navigator.pop(context);

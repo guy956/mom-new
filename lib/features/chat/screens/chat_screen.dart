@@ -918,7 +918,7 @@ class _ChatScreenState extends State<ChatScreen>
                   style: const TextStyle(fontFamily: 'Heebo'),
                   decoration: InputDecoration(
                     labelText: 'אימייל ליצירת קשר',
-                    hintText: 'your@email.com',
+                    hintText: 'name@example.com',
                     hintStyle: TextStyle(
                         fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,
@@ -937,7 +937,7 @@ class _ChatScreenState extends State<ChatScreen>
                   style: const TextStyle(fontFamily: 'Heebo'),
                   decoration: InputDecoration(
                     labelText: 'טלפון ליצירת קשר',
-                    hintText: '050-1234567',
+                    hintText: '05X-XXXXXXX',
                     hintStyle: TextStyle(
                         fontFamily: 'Heebo', color: AppColors.textHint),
                     filled: true,

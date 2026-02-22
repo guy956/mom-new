@@ -544,7 +544,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
                     icon: Icons.email_outlined,
                     color: Colors.blueGrey,
                     onPressed: () async {
-                      final email = reporterEmail ?? 'support@momconnect.co.il';
+                      final email = reporterEmail ?? 'support@momit.co.il';
                       final subject = Uri.encodeComponent('בנוגע לדיווח #$id - MOMIT');
                       final body = Uri.encodeComponent('שלום,\n\nבנוגע לדיווח שהגשת על ${_typeLabel(type)}:\n"$content"\n\n');
                       final uri = Uri.parse('mailto:$email?subject=$subject&body=$body');

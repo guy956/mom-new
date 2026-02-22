@@ -293,7 +293,7 @@ class AccessibilityScreen extends StatelessWidget {
                     'ועומדת בתקן הנגישות הבינלאומי WCAG 2.2 ברמה AA. '
                     'האפליקציה תומכת בקוראי מסך, ניווט מקלדת, גודל טקסט מתכוונן, '
                     'ניגודיות גבוהה והתאמות עיוורון צבעים. '
-                    '\n\nלדיווח על בעיית נגישות: accessibility@momconnect.co.il',
+                    '\n\nלדיווח על בעיית נגישות: accessibility@momit.co.il',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Heebo',

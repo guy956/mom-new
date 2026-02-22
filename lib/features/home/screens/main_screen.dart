@@ -922,7 +922,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const LegalScreen()));
               }),
-              _settingsTile(Icons.language_rounded, 'שפה', trailing: Text('עברית', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 13))),
+              _settingsTile(Icons.language_rounded, 'שפה', trailing: Text('עברית', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 13)), onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('כרגע האפליקציה זמינה בעברית בלבד. שפות נוספות בקרוב!', style: TextStyle(fontFamily: 'Heebo')), behavior: SnackBarBehavior.floating),
+                );
+              }),
               _settingsTile(
                 Icons.dark_mode_outlined, 'מצב כהה',
                 trailing: Switch(

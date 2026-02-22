@@ -132,7 +132,7 @@ class _PrivacyPolicyTab extends StatelessWidget {
             '- זכות הגבלת עיבוד: להגביל את השימוש במידע\n'
             '- זכות ניוד מידע: לקבל עותק של המידע שלך בפורמט נגיש\n'
             '- זכות התנגדות: להתנגד לעיבוד מידע לצורכי שיווק\n\n'
-            'לממוש זכויותיך, פנה אלינו: privacy@momconnect.co.il',
+            'לממוש זכויותיך, פנה אלינו: privacy@momit.co.il',
           ),
           _buildParagraph(
             '7. שמירת מידע',
@@ -157,8 +157,8 @@ class _PrivacyPolicyTab extends StatelessWidget {
           _buildParagraph(
             '10. יצירת קשר',
             'לכל שאלה או בקשה בנוגע למדיניות הפרטיות:\n\n'
-            'דוא"ל: privacy@momconnect.co.il\n'
-            'קצין הגנת מידע: dpo@momconnect.co.il\n'
+            'דוא"ל: privacy@momit.co.il\n'
+            'קצין הגנת מידע: dpo@momit.co.il\n'
             'כתובת: רח\' רוטשילד 1, תל אביב\n\n'
             'ניתן גם לפנות לרשות להגנת הפרטיות:\n'
             'https://www.gov.il/he/departments/the_privacy_protection_authority',
@@ -430,14 +430,14 @@ class _AccessibilityStatementTab extends StatelessWidget {
           _buildParagraph(
             'דיווח על בעיות נגישות',
             'אם נתקלת בבעיית נגישות באפליקציה, אנא פנה אלינו:\n\n'
-            'דוא"ל: accessibility@momconnect.co.il\n'
+            'דוא"ל: accessibility@momit.co.il\n'
             'טלפון: 03-1234567\n\n'
             'אנו מתחייבים לטפל בכל פנייה בתוך 14 ימי עסקים.',
           ),
           _buildParagraph(
             'רכז נגישות',
             'שם: צוות MOMIT\n'
-            'דוא"ל: accessibility@momconnect.co.il\n'
+            'דוא"ל: accessibility@momit.co.il\n'
             'טלפון: 03-1234567',
           ),
         ],

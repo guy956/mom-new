@@ -694,7 +694,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           '9.2 סמכות השיפוט הבלעדית תהיה לבתי המשפט במחוז תל אביב.\n\n'
           '10. יצירת קשר\n'
           'לכל שאלה או פנייה בנושא תנאי השימוש:\n'
-          'אימייל: legal@momconnect.co.il\n'
+          'אימייל: legal@momit.co.il\n'
           'טלפון: 03-1234567\n',
           style: TextStyle(fontFamily: 'Heebo', height: 1.6, fontSize: 13),
         )),
@@ -771,7 +771,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           '9.2 שינויים מהותיים יפורסמו באפליקציה ובאימייל.\n\n'
           '10. יצירת קשר - ממונה הגנת פרטיות\n'
           'לכל שאלה או בקשה בנושא פרטיות:\n'
-          'אימייל: privacy@momconnect.co.il\n'
+          'אימייל: privacy@momit.co.il\n'
           'טלפון: 03-1234567\n'
           'כתובת: רח\' הרצל 1, תל אביב\n\n'
           '11. רשם מאגרי מידע\n'

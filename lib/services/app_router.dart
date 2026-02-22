@@ -95,14 +95,6 @@ class AppRouter {
             settings,
           );
         
-        // TODO: Implement these screens when needed
-        // case feed:
-        // case tracking:
-        // case events:
-        // case profile:
-        // case marketplace:
-        // etc.
-        
         default:
           // Log unknown routes for debugging
           debugPrint('[AppRouter] Unknown route: ${settings.name}');
