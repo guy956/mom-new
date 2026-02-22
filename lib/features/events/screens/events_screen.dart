@@ -426,8 +426,8 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
           labelStyle: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontFamily: 'Heebo'),
           tabs: const [
-            Tab(child: Semantics(label: 'רשימת אירועים', button: true, child: Text('רשימה'))),
-            Tab(child: Semantics(label: 'לוח שנה', button: true, child: Text('לוח שנה'))),
+            Tab(child: Text('רשימה')),
+            Tab(child: Text('לוח שנה')),
           ],
         ),
       ),

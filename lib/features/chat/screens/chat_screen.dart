@@ -181,9 +181,9 @@ class _ChatScreenState extends State<ChatScreen>
         indicatorColor: AppColors.primary,
         indicatorWeight: 3,
         tabs: const [
-          Tab(child: Semantics(label: 'הכל', button: true, child: Text('הכל'))),
-          Tab(child: Semantics(label: 'קבוצות', button: true, child: Text('קבוצות'))),
-          Tab(child: Semantics(label: 'פרטי', button: true, child: Text('פרטי'))),
+          Tab(child: Text('הכל')),
+          Tab(child: Text('קבוצות')),
+          Tab(child: Text('פרטי')),
         ],
       ),
     );

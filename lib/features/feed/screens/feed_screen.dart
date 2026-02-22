@@ -507,10 +507,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
         padding: const EdgeInsets.symmetric(horizontal: 8),
         tabAlignment: TabAlignment.start,
         tabs: const [
-          Tab(child: Semantics(label: 'פופולרי', button: true, child: Text('פופולרי'))),
-          Tab(child: Semantics(label: 'חדש', button: true, child: Text('חדש'))),
-          Tab(child: Semantics(label: 'באזורי', button: true, child: Text('באזורי'))),
-          Tab(child: Semantics(label: 'עוקבות', button: true, child: Text('עוקבות'))),
+          Tab(child: Text('פופולרי')),
+          Tab(child: Text('חדש')),
+          Tab(child: Text('באזורי')),
+          Tab(child: Text('עוקבות')),
         ],
       ),
     );
