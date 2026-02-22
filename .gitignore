@@ -84,6 +84,10 @@ ios/Podfile.lock
 *.dSYM.zip
 *.dSYM
 
+# Release build artifacts (contain compiled code with embedded keys)
+/releases/
+/build/
+
 # Server logs
 server.log
 build.log

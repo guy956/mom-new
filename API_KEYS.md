@@ -72,9 +72,9 @@ Firebase keys are configured in `lib/firebase_options.dart` (not in `.env`).
 
 | Platform | API Key | App ID |
 |----------|---------|--------|
-| Web | `AIzaSyCjI-LFvVTF2WPHRMiVVS4ClbnSixG1bR4` | `1:459220254220:web:...` |
+| Web | See `lib/firebase_options.dart` | `1:459220254220:web:...` |
 | Android | Same as Web | `1:459220254220:android:...` |
-| iOS | `AIzaSyAWumTmBmRzyqw1mBg3q63kzrsaED1S1ds` | `1:459220254220:ios:...` |
+| iOS | See `lib/firebase_options.dart` | `1:459220254220:ios:...` |
 
 **Project ID:** `momit-1`
 **Storage Bucket:** `momit-1.firebasestorage.app`

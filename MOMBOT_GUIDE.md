@@ -28,7 +28,7 @@
 
 - **מודל:** Google Gemini 2.0 Flash
 - **שפה:** עברית (RTL)
-- **API Key:** `AIzaSyDENOBbuoNc2XeyA7XRxVFQT51_TJrgD9s`
+- **API Key:** Stored in Firestore `admin_config/api_keys` (never hardcode)
 - **Endpoint:** `generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
 
 ---
@@ -176,7 +176,8 @@
 ```dart
 class AIChatScreen {
   // API Configuration
-  static const String _geminiApiKey = 'AIzaSyDENOBbuoNc2XeyA7XRxVFQT51_TJrgD9s';
+  // API key loaded from Firestore admin_config/api_keys at runtime
+  String? _geminiApiKey;
   static const String _geminiUrl = '...';
   
   // System Prompt

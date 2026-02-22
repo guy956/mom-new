@@ -464,30 +464,10 @@ firebase firestore:documents:get /users --project your-project-id
 ### Firebase Configuration (lib/firebase_options.dart)
 
 ```dart
-// Web Configuration
-apiKey: 'AIzaSyCjI-LFvVTF2WPHRMiVVS4ClbnSixG1bR4'
-appId: '1:459220254220:web:1b2ae6f7c99fff14fff829'
-messagingSenderId: '459220254220'
-projectId: 'momit-1'
-authDomain: 'momit-1.firebaseapp.com'
-storageBucket: 'momit-1.firebasestorage.app'
-measurementId: 'G-MEASUREMENT_ID'
-
-// Android Configuration
-apiKey: 'AIzaSyCjI-LFvVTF2WPHRMiVVS4ClbnSixG1bR4'
-appId: '1:459220254220:android:1b2ae6f7c99fff14fff829'
-messagingSenderId: '459220254220'
-projectId: 'momit-1'
-storageBucket: 'momit-1.firebasestorage.app'
-
-// iOS Configuration
-apiKey: 'AIzaSyAWumTmBmRzyqw1mBg3q63kzrsaED1S1ds'
-appId: '1:459220254220:ios:70f057902858a848fff829'
-messagingSenderId: '459220254220'
-projectId: 'momit-1'
-storageBucket: 'momit-1.firebasestorage.app'
-iosClientId: '459220254220-gaaf7nh618bgjc2tbd0ds6r0urgru8ea.apps.googleusercontent.com'
-iosBundleId: 'MOMIT-1'
+// All Firebase configuration values are in lib/firebase_options.dart
+// Do NOT hardcode API keys in documentation.
+// Web, Android, and iOS configurations reference project: momit-1
+// See lib/firebase_options.dart for actual apiKey, appId, and other values.
 ```
 
 ### API Environment Variables (.env)

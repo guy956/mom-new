@@ -251,8 +251,8 @@ The following packages have major version updates available:
 **File:** `/Users/guy/Desktop/mom-new/.env`
 
 ```
-JWT_ACCESS_SECRET=Bf3r24zQIRL4jjDXaER8SUssIU0UjPJhWuiBrCvaORiNuTE4qhwGqD+aGGOA2wrI
-JWT_REFRESH_SECRET=zvdfLLoQEtQuLUmC0vJp6NuRlWwU+DPFUJnHNuOureBQ98syQiYUiKZKMq7mawKw
+JWT_ACCESS_SECRET=<REDACTED - rotate this secret immediately>
+JWT_REFRESH_SECRET=<REDACTED - rotate this secret immediately>
 ```
 
 **Recommendations:**

@@ -105,7 +105,7 @@ firebase deploy --only hosting
 | Project ID | `momit-1` |
 | Project Number | `459220254220` |
 | Storage Bucket | `momit-1.firebasestorage.app` |
-| Web API Key | `AIzaSyCjI-LFvVTF2WPHRMiVVS4ClbnSixG1bR4` |
+| Web API Key | See `lib/firebase_options.dart` |
 | Android App ID | `1:459220254220:android:1b2ae6f7c99fff14fff829` |
 | iOS App ID | `1:459220254220:ios:70f057902858a848fff829` |
 | Web App ID | `1:459220254220:web:1b2ae6f7c99fff14fff829` |

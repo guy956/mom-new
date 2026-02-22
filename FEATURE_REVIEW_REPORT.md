@@ -222,7 +222,7 @@ Comprehensive error handling implemented:
 
 The Gemini API key is currently hardcoded:
 ```dart
-static const String _geminiApiKey = 'AIzaSyDENOBbuoNc2XeyA7XRxVFQT51_TJrgD9s';
+// FIXED: API key now loaded from Firestore admin_config/api_keys at runtime
 ```
 
 **Recommendation:** Move to environment variables or secure storage

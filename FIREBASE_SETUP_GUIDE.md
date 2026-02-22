@@ -207,14 +207,15 @@ admin_audit_log/     # Admin actions audit
 
 ```dart
 static const FirebaseOptions web = FirebaseOptions(
-  apiKey: 'AIzaSyCjI-LFvVTF2WPHRMiVVS4ClbnSixG1bR4',
-  appId: '1:459220254220:web:1b2ae6f7c99fff14fff829',
-  messagingSenderId: '459220254220',
+  apiKey: '<YOUR_WEB_API_KEY>',
+  appId: '<YOUR_WEB_APP_ID>',
+  messagingSenderId: '<YOUR_SENDER_ID>',
   projectId: 'momit-1',
   authDomain: 'momit-1.firebaseapp.com',
   storageBucket: 'momit-1.firebasestorage.app',
-  measurementId: 'G-MEASUREMENT_ID', // Update with actual ID
+  measurementId: '<YOUR_MEASUREMENT_ID>',
 );
+// See lib/firebase_options.dart for actual values
 ```
 
 ### Android
@@ -236,14 +237,15 @@ static const FirebaseOptions web = FirebaseOptions(
 
 ```dart
 static const FirebaseOptions ios = FirebaseOptions(
-  apiKey: 'AIzaSyAWumTmBmRzyqw1mBg3q63kzrsaED1S1ds',
-  appId: '1:459220254220:ios:70f057902858a848fff829',
-  messagingSenderId: '459220254220',
+  apiKey: '<YOUR_IOS_API_KEY>',
+  appId: '<YOUR_IOS_APP_ID>',
+  messagingSenderId: '<YOUR_SENDER_ID>',
   projectId: 'momit-1',
   storageBucket: 'momit-1.firebasestorage.app',
-  iosClientId: '459220254220-gaaf7nh618bgjc2tbd0ds6r0urgru8ea.apps.googleusercontent.com',
+  iosClientId: '<YOUR_IOS_CLIENT_ID>',
   iosBundleId: 'MOMIT-1',
 );
+// See lib/firebase_options.dart for actual values
 ```
 
 **Missing:** `ios/Runner/GoogleService-Info.plist`
