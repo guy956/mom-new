@@ -105,7 +105,7 @@ class _AdminMediaVaultTabState extends State<AdminMediaVaultTab> {
         'uploadedBy': 'מנהלת',
       });
 
-      await fs.logActivity(action: 'העלאת קובץ: ${file.name}', user: 'מנהלת', type: 'media');
+      await fs.logActivity(action: 'העלאת קובץ: ${file.name}', user: AdminWidgets.adminName(context), type: 'media');
       if (mounted) AdminWidgets.snack(context, 'הקובץ הועלה בהצלחה');
     } catch (e) {
       if (mounted) AdminWidgets.snack(context, 'שגיאה בהעלאה: $e', color: Colors.red);
@@ -124,7 +124,7 @@ class _AdminMediaVaultTabState extends State<AdminMediaVaultTab> {
         await FirebaseStorage.instance.ref(storagePath).delete();
       }
       await fs.deleteMediaItem(item['id']);
-      await fs.logActivity(action: 'מחיקת קובץ: ${item['name']}', user: 'מנהלת', type: 'media');
+      await fs.logActivity(action: 'מחיקת קובץ: ${item['name']}', user: AdminWidgets.adminName(context), type: 'media');
       if (mounted) AdminWidgets.snack(context, 'הקובץ נמחק');
     } catch (e) {
       if (mounted) AdminWidgets.snack(context, 'שגיאה במחיקה: $e', color: Colors.red);

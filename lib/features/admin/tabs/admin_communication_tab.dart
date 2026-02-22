@@ -222,7 +222,7 @@ class _AdminCommunicationTabState extends State<AdminCommunicationTab>
         'sentBy': 'מנהלת',
       });
 
-      await fs.logActivity(action: 'שליחת Push: $title', user: 'מנהלת', type: 'communication');
+      await fs.logActivity(action: 'שליחת Push: $title', user: AdminWidgets.adminName(context), type: 'communication');
 
       _pushTitleCtrl.clear();
       _pushBodyCtrl.clear();
@@ -328,7 +328,7 @@ class _AdminCommunicationTabState extends State<AdminCommunicationTab>
                     'link': _annLinkCtrl.text.trim(),
                     'color': _annColor,
                   });
-                  await fs.logActivity(action: 'עדכון באנר הודעות', user: 'מנהלת', type: 'communication');
+                  await fs.logActivity(action: 'עדכון באנר הודעות', user: AdminWidgets.adminName(context), type: 'communication');
                   if (context.mounted) AdminWidgets.snack(context, 'הבאנר עודכן בהצלחה');
                 },
               ),

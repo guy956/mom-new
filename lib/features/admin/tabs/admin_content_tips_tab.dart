@@ -18,13 +18,6 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
   late TabController _sectionTab;
   String _selectedCategory = 'הכל';
 
-  // Announcement controllers
-  final _annTextCtrl = TextEditingController();
-  final _annLinkCtrl = TextEditingController();
-  String _annColor = '#D1C2D3';
-  bool _annEnabled = false;
-  bool _annInitialized = false;
-
   static const List<String> _fallbackCategories = [
     'שינה', 'האכלה', 'התפתחות', 'בריאות',
     'כושר', 'רווחה נפשית', 'טיפול בתינוק', 'תזונה',
@@ -47,14 +40,12 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
   @override
   void initState() {
     super.initState();
-    _sectionTab = TabController(length: 3, vsync: this);
+    _sectionTab = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
     _sectionTab.dispose();
-    _annTextCtrl.dispose();
-    _annLinkCtrl.dispose();
     super.dispose();
   }
 
@@ -80,7 +71,6 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                 tabs: const [
                   Tab(text: 'טיפים'),
                   Tab(text: 'פוסטים'),
-                  Tab(text: 'באנר הודעות'),
                 ],
               ),
             ),
@@ -90,7 +80,6 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                 children: [
                   _buildTipsSection(fs),
                   _buildPostsSection(fs),
-                  _buildAnnouncementSection(fs),
                 ],
               ),
             ),
@@ -391,7 +380,7 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                                 tooltip: isPinned ? 'בטל הצמדה' : 'הצמד',
                                 onPressed: () async {
                                   await fs.updatePost(id, {'pinned': !isPinned});
-                                  await fs.logActivity(action: isPinned ? 'ביטול הצמדת פוסט' : 'הצמדת פוסט', user: 'מנהלת', type: 'content');
+                                  await fs.logActivity(action: isPinned ? 'ביטול הצמדת פוסט' : 'הצמדת פוסט', user: AdminWidgets.adminName(context), type: 'content');
                                   if (context.mounted) AdminWidgets.snack(context, isPinned ? 'ההצמדה בוטלה' : 'הפוסט הוצמד');
                                 },
                               ),
@@ -402,7 +391,7 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                                   final confirmed = await AdminWidgets.confirmDelete(context, 'הפוסט');
                                   if (confirmed) {
                                     await fs.deletePost(id);
-                                    await fs.logActivity(action: 'מחיקת פוסט', user: 'מנהלת', type: 'content');
+                                    await fs.logActivity(action: 'מחיקת פוסט', user: AdminWidgets.adminName(context), type: 'content');
                                     if (context.mounted) AdminWidgets.snack(context, 'הפוסט נמחק');
                                   }
                                 },
@@ -423,105 +412,6 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
   }
 
   // ════════════════════════════════════════════════════════════════
-  //  ANNOUNCEMENT BANNER SECTION
-  // ════════════════════════════════════════════════════════════════
-
-  Widget _buildAnnouncementSection(FirestoreService fs) {
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: fs.announcementStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !_annInitialized) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasData && !_annInitialized) {
-          final data = snapshot.data!;
-          _annTextCtrl.text = data['text'] ?? '';
-          _annLinkCtrl.text = data['link'] ?? '';
-          _annColor = data['color'] ?? '#D1C2D3';
-          _annEnabled = data['enabled'] ?? false;
-          _annInitialized = true;
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AdminWidgets.sectionTitle('באנר הודעות', icon: Icons.campaign_rounded),
-              const SizedBox(height: 4),
-              Text('הודעה שמוצגת לכל המשתמשות בראש האפליקציה', style: TextStyle(fontFamily: 'Heebo', fontSize: 13, color: Colors.grey.shade600)),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AdminWidgets.parseColor(_annColor).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AdminWidgets.parseColor(_annColor).withValues(alpha: 0.4)),
-                ),
-                child: Row(children: [
-                  Icon(Icons.campaign, color: AdminWidgets.parseColor(_annColor)),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(
-                    _annTextCtrl.text.isNotEmpty ? _annTextCtrl.text : 'תצוגה מקדימה של ההודעה...',
-                    style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: _annTextCtrl.text.isNotEmpty ? Colors.black87 : Colors.grey),
-                  )),
-                ]),
-              ),
-              const SizedBox(height: 20),
-              AdminWidgets.featureToggle(
-                label: 'הצג באנר',
-                description: 'הפעלה/כיבוי של הבאנר בכל האפליקציה',
-                value: _annEnabled,
-                icon: Icons.visibility,
-                onChanged: (val) => setState(() => _annEnabled = val),
-              ),
-              const SizedBox(height: 12),
-              AdminWidgets.configField(label: 'טקסט ההודעה', controller: _annTextCtrl, icon: Icons.text_fields, maxLines: 2),
-              AdminWidgets.configField(label: 'קישור (אופציונלי)', controller: _annLinkCtrl, icon: Icons.link),
-              const SizedBox(height: 4),
-              Text('צבע הבאנר', style: TextStyle(fontFamily: 'Heebo', fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: ['#D1C2D3', '#D4A1AC', '#B5C8B9', '#DBC8B0', '#E8D5B7', '#C5CAE9', '#FFAB91', '#80CBC4'].map((hex) {
-                  final isSelected = _annColor == hex;
-                  return GestureDetector(
-                    onTap: () => setState(() => _annColor = hex),
-                    child: Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        color: AdminWidgets.parseColor(hex),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: isSelected ? Colors.black87 : Colors.transparent, width: isSelected ? 3 : 0),
-                      ),
-                      child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              AdminWidgets.saveButton(
-                label: 'שמור הודעה',
-                onPressed: () async {
-                  await fs.updateAnnouncement({
-                    'enabled': _annEnabled,
-                    'text': _annTextCtrl.text.trim(),
-                    'link': _annLinkCtrl.text.trim(),
-                    'color': _annColor,
-                  });
-                  await fs.logActivity(action: 'עדכון באנר הודעות', user: 'מנהלת', type: 'content');
-                  if (context.mounted) AdminWidgets.snack(context, 'הבאנר עודכן בהצלחה');
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   // ════════════════════════════════════════════════════════════════
   //  TIP DIALOG (with file upload)
   // ════════════════════════════════════════════════════════════════
@@ -657,10 +547,10 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                       };
                       if (isEditing) {
                         await fs.updateTip(existingTip['id'], tipData);
-                        await fs.logActivity(action: 'עריכת טיפ', user: 'מנהלת', type: 'content');
+                        await fs.logActivity(action: 'עריכת טיפ', user: AdminWidgets.adminName(context), type: 'content');
                       } else {
                         await fs.addTip(tipData);
-                        await fs.logActivity(action: 'הוספת טיפ', user: 'מנהלת', type: 'content');
+                        await fs.logActivity(action: 'הוספת טיפ', user: AdminWidgets.adminName(context), type: 'content');
                       }
                       if (ctx.mounted) Navigator.of(ctx).pop();
                       if (context.mounted) AdminWidgets.snack(context, isEditing ? 'הטיפ עודכן בהצלחה' : 'הטיפ נוסף בהצלחה');
@@ -684,7 +574,7 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
     final confirmed = await AdminWidgets.confirmDelete(context, 'הטיפ "$title"');
     if (confirmed) {
       await fs.deleteTip(id);
-      await fs.logActivity(action: 'מחיקת טיפ', user: 'מנהלת', type: 'content');
+      await fs.logActivity(action: 'מחיקת טיפ', user: AdminWidgets.adminName(context), type: 'content');
       if (context.mounted) AdminWidgets.snack(context, 'הטיפ "$title" נמחק', color: Colors.red.shade400);
     }
   }
@@ -770,7 +660,7 @@ class _AdminContentTipsTabState extends State<AdminContentTipsTab>
                   }
                   if (tips.isNotEmpty) {
                     await fs.batchAddTips(tips);
-                    await fs.logActivity(action: 'העלאה מרובה: ${tips.length} טיפים', user: 'מנהלת', type: 'content');
+                    await fs.logActivity(action: 'העלאה מרובה: ${tips.length} טיפים', user: AdminWidgets.adminName(context), type: 'content');
                   }
                   if (ctx.mounted) Navigator.of(ctx).pop();
                   if (context.mounted) {

@@ -167,7 +167,7 @@ class _AdminAppConfigTabState extends State<AdminAppConfigTab> {
       await fs.updateAppConfig(configMap);
       await fs.logActivity(
         action: 'עדכון הגדרות אפליקציה',
-        user: 'מנהלת',
+        user: AdminWidgets.adminName(context),
         type: 'config',
       );
 

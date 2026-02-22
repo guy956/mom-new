@@ -183,7 +183,7 @@ class _AdminUIDesignTabState extends State<AdminUIDesignTab> {
       await fs.updateUIConfig(config);
       await fs.logActivity(
         action: 'עדכון עיצוב',
-        user: 'מנהלת',
+        user: AdminWidgets.adminName(context),
         type: 'config',
       );
 

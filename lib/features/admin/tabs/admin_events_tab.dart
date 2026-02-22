@@ -435,7 +435,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                       await fs.updateEvent(event['id'], {'status': 'approved'});
                       await fs.logActivity(
                         action: 'אירוע אושר: ${event['title']}',
-                        user: 'מנהלת',
+                        user: AdminWidgets.adminName(context),
                         type: 'event',
                       );
                       if (context.mounted) AdminWidgets.snack(context, 'האירוע אושר');
@@ -449,7 +449,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                       await fs.updateEvent(event['id'], {'status': 'rejected'});
                       await fs.logActivity(
                         action: 'אירוע נדחה: ${event['title']}',
-                        user: 'מנהלת',
+                        user: AdminWidgets.adminName(context),
                         type: 'event',
                       );
                       if (context.mounted) AdminWidgets.snack(context, 'האירוע נדחה');
@@ -564,7 +564,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
       await fs.deleteEvent(event['id']);
       await fs.logActivity(
         action: 'אירוע נמחק: ${event['title']}',
-        user: 'מנהלת',
+        user: AdminWidgets.adminName(context),
         type: 'event',
       );
       if (context.mounted) AdminWidgets.snack(context, 'האירוע נמחק');
@@ -824,7 +824,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                     await fs.updateEvent(existingEvent['id'], eventData);
                     await fs.logActivity(
                       action: 'אירוע עודכן: ${titleController.text.trim()}',
-                      user: 'מנהלת',
+                      user: AdminWidgets.adminName(context),
                       type: 'event',
                     );
                   } else {
@@ -833,7 +833,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                     await fs.createEvent(eventData);
                     await fs.logActivity(
                       action: 'אירוע חדש נוצר: ${titleController.text.trim()}',
-                      user: 'מנהלת',
+                      user: AdminWidgets.adminName(context),
                       type: 'event',
                     );
                   }

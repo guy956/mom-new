@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:mom_connect/services/app_state.dart';
 
 /// Shared UI helpers for admin dashboard tabs.
 class AdminWidgets {
@@ -8,6 +10,16 @@ class AdminWidgets {
   static const Color kPrimary = Color(0xFFD1C2D3);
   static const Color kDark = Color(0xFF43363A);
   static const Color kBg = Color(0xFFF9F5F4);
+
+  /// Get the current admin user's display name from AppState
+  static String adminName(BuildContext context) {
+    try {
+      final appState = context.read<AppState>();
+      return appState.currentUser?.fullName ?? 'מנהלת';
+    } catch (_) {
+      return 'מנהלת';
+    }
+  }
 
   // ── KPI Card ──
   static Widget kpiCard({

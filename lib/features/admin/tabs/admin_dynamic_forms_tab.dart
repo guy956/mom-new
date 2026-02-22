@@ -458,7 +458,7 @@ class _AdminDynamicFormsTabState extends State<AdminDynamicFormsTab>
     setState(() => _regSaving = true);
     try {
       await fs.updateRegistrationForm({'fields': _registrationFields});
-      await fs.logActivity(action: 'עדכון טופס הרשמה', user: 'מנהלת', type: 'config');
+      await fs.logActivity(action: 'עדכון טופס הרשמה', user: AdminWidgets.adminName(context), type: 'config');
       if (mounted) AdminWidgets.snack(context, 'טופס ההרשמה עודכן');
     } catch (e) {
       if (mounted) AdminWidgets.snack(context, 'שגיאה: $e', color: Colors.red);
@@ -471,7 +471,7 @@ class _AdminDynamicFormsTabState extends State<AdminDynamicFormsTab>
     setState(() => _sosSaving = true);
     try {
       await fs.updateSosForm({'fields': _sosFields});
-      await fs.logActivity(action: 'עדכון טופס SOS', user: 'מנהלת', type: 'config');
+      await fs.logActivity(action: 'עדכון טופס SOS', user: AdminWidgets.adminName(context), type: 'config');
       if (mounted) AdminWidgets.snack(context, 'טופס SOS עודכן');
     } catch (e) {
       if (mounted) AdminWidgets.snack(context, 'שגיאה: $e', color: Colors.red);

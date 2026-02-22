@@ -118,7 +118,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
 
     if (confirmed == true) {
       await fs.deleteReport(reportId);
-      await fs.logActivity(action: 'דיווח נמחק: $reportId', user: 'מנהלת', type: 'report');
+      await fs.logActivity(action: 'דיווח נמחק: $reportId', user: AdminWidgets.adminName(context), type: 'report');
     }
   }
 
@@ -514,7 +514,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
                           await fs.updateReportStatus(id, 'closed');
                           await fs.logActivity(
                             action: 'מחיקת פוסט מדווח $reportedPostId וסגירת דיווח $id',
-                            user: 'מנהלת',
+                            user: AdminWidgets.adminName(context),
                             type: 'report',
                           );
                         }
@@ -532,7 +532,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
                         await fs.updateReportStatus(id, 'closed');
                         await fs.logActivity(
                           action: 'חסימת משתמש $reportedUserId בעקבות דיווח $id',
-                          user: 'מנהלת',
+                          user: AdminWidgets.adminName(context),
                           type: 'report',
                         );
                       },
@@ -634,7 +634,7 @@ class _AdminReportsTabState extends State<AdminReportsTab> {
         await fs.addReportNote(reportId, note);
       }
       await fs.updateReportStatus(reportId, 'closed');
-      await fs.logActivity(action: 'דיווח נסגר: $reportId', user: 'מנהלת', type: 'report');
+      await fs.logActivity(action: 'דיווח נסגר: $reportId', user: AdminWidgets.adminName(context), type: 'report');
       if (context.mounted) AdminWidgets.snack(context, 'הדיווח נסגר');
     }
     noteCtrl.dispose();

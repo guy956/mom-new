@@ -320,7 +320,7 @@ class _AdminFeatureTogglesTabState extends State<AdminFeatureTogglesTab> {
                         await fs.updateFeatureFlags(merged);
                         await fs.logActivity(
                           action: 'עדכון תכונות',
-                          user: 'מנהלת',
+                          user: AdminWidgets.adminName(context),
                           type: 'config',
                         );
                         if (mounted) {

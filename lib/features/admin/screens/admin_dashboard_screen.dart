@@ -411,43 +411,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     super.dispose();
   }
 
-  /// Refresh dashboard data
+  /// Refresh dashboard data (Firestore streams auto-update; this forces UI rebuild)
   Future<void> _refreshData() async {
     setState(() {});
-    
-    // Show refresh indicator
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('מעדכן נתונים...', style: TextStyle(fontFamily: 'Heebo')),
-            ],
-          ),
+          content: Text('הנתונים מתעדכנים בזמן אמת', style: TextStyle(fontFamily: 'Heebo')),
           backgroundColor: Color(0xFFB5C8B9),
           duration: Duration(seconds: 1),
-        ),
-      );
-    }
-    
-    // Simulate a brief delay for better UX
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('הנתונים עודכנו', style: TextStyle(fontFamily: 'Heebo')),
-          backgroundColor: Color(0xFFB5C8B9),
-          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

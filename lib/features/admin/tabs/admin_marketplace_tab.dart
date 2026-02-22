@@ -334,7 +334,7 @@ class _AdminMarketplaceTabState extends State<AdminMarketplaceTab> {
 
   Future<void> _changeStatus(FirestoreService fs, String id, String newStatus, String title) async {
     await fs.updateMarketplaceItemStatus(id, newStatus);
-    await fs.logActivity(action: 'שינוי סטטוס פריט "$title" ל-$newStatus', user: 'מנהלת', type: 'marketplace');
+    await fs.logActivity(action: 'שינוי סטטוס פריט "$title" ל-$newStatus', user: AdminWidgets.adminName(context), type: 'marketplace');
     if (mounted) AdminWidgets.snack(context, 'הסטטוס עודכן');
   }
 
@@ -353,7 +353,7 @@ class _AdminMarketplaceTabState extends State<AdminMarketplaceTab> {
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 await fs.deleteMarketplaceItem(id);
-                await fs.logActivity(action: 'מחיקת פריט: $title', user: 'מנהלת', type: 'marketplace');
+                await fs.logActivity(action: 'מחיקת פריט: $title', user: AdminWidgets.adminName(context), type: 'marketplace');
                 if (context.mounted) AdminWidgets.snack(context, 'הפריט נמחק', color: Colors.red.shade400);
               },
               child: Text('מחק', style: TextStyle(fontFamily: 'Heebo', color: Colors.red.shade600, fontWeight: FontWeight.w600)),
@@ -462,10 +462,10 @@ class _AdminMarketplaceTabState extends State<AdminMarketplaceTab> {
                   };
                   if (isEditing) {
                     await fs.updateMarketplaceItem(existingItem['id'], data);
-                    await fs.logActivity(action: 'עריכת פריט: $title', user: 'מנהלת', type: 'marketplace');
+                    await fs.logActivity(action: 'עריכת פריט: $title', user: AdminWidgets.adminName(context), type: 'marketplace');
                   } else {
                     await fs.addMarketplaceItem(data);
-                    await fs.logActivity(action: 'הוספת פריט: $title', user: 'מנהלת', type: 'marketplace');
+                    await fs.logActivity(action: 'הוספת פריט: $title', user: AdminWidgets.adminName(context), type: 'marketplace');
                   }
                   if (ctx.mounted) Navigator.of(ctx).pop();
                   if (context.mounted) AdminWidgets.snack(context, isEditing ? 'הפריט עודכן' : 'הפריט נוסף');
