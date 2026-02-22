@@ -13,6 +13,7 @@ import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/storage_service.dart';
 import 'package:mom_connect/services/tracking_service.dart';
+import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
 import 'package:mom_connect/services/dynamic_config_service.dart';
 import 'package:provider/provider.dart';
 import 'package:mom_connect/features/accessibility/screens/accessibility_screen.dart';
@@ -191,13 +192,20 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 ),
                 const SizedBox(width: 24),
                 Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem('${_user.stats.postsCount}', 'פוסטים'),
-                      _buildStatItem('${_user.stats.followersCount}', 'עוקבות'),
-                      _buildStatItem('${_user.stats.followingCount}', 'עוקבת'),
-                    ],
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: Provider.of<FirestoreService>(context, listen: false).postsStream,
+                    builder: (context, snapshot) {
+                      final allPosts = snapshot.data ?? [];
+                      final userPostsCount = allPosts.where((p) => p['authorId'] == _user.id).length;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatItem('$userPostsCount', 'פוסטים'),
+                          _buildStatItem('${_user.children.length}', 'ילדים'),
+                          _buildStatItem('${_user.interests.length}', 'תחומי עניין'),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -372,6 +380,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                     icon: const Icon(Icons.share_outlined),
                     color: AppColors.textPrimary,
                     onPressed: () {
+                      final profileUrl = 'https://momit.pages.dev/profile/${_user.id}';
+                      Clipboard.setData(ClipboardData(text: profileUrl));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('קישור הפרופיל הועתק', style: TextStyle(fontFamily: 'Heebo')),
@@ -698,15 +708,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   color: Colors.white,
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('עריכת פרטי ${child.name}', style: const TextStyle(fontFamily: 'Heebo')),
-                        backgroundColor: AppColors.info,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onPressed: () => _showEditChildSheet(child),
                 ),
               ],
             ),
@@ -732,19 +734,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildQuickAction(Icons.show_chart_rounded, 'גדילה', () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('גרף גדילה של ${child.name}', style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingScreen()));
                 }),
                 _buildQuickAction(Icons.flag_rounded, 'מיילסטונים', () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('אבני דרך של ${child.name}', style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.info, behavior: SnackBarBehavior.floating),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingScreen()));
                 }),
                 _buildQuickAction(Icons.vaccines_rounded, 'חיסונים', () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('לוח חיסונים של ${child.name}', style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.accent, behavior: SnackBarBehavior.floating),
-                  );
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrackingScreen()));
                 }),
               ],
             ),
@@ -960,12 +956,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                       final appState = context.read<AppState>();
                       final userId = appState.currentUser?.id ?? 'anonymous';
 
+                      // Delete old image from Storage
+                      if (_user.profileImage != null) {
+                        final storageService = context.read<StorageService>();
+                        await storageService.deleteFileByUrl(_user.profileImage!);
+                      }
+
                       // Remove from Firestore
                       final firestoreService = context.read<FirestoreService>();
                       await firestoreService.updateUser(userId, {'profileImage': null});
 
                       // Update local state
-                      appState.updateUserProfile(profileImage: '');
+                      appState.updateUserProfile(clearProfileImage: true);
                       setState(() {
                         _user = _user.copyWith(profileImage: null);
                       });
@@ -1457,7 +1459,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         birthDate: selectedBirthDate,
                         gender: gender,
                       );
-                      context.read<AppState>().addChild(newChild);
+                      final appState = context.read<AppState>();
+                      appState.addChild(newChild);
 
                       // Also add to TrackingService for sync
                       final trackingService = context.read<TrackingService>();
@@ -1465,8 +1468,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                         trackingService.addChild(trackingService.childModelToProfile(newChild));
                       }
 
+                      // Persist to Firestore
+                      final userId = appState.currentUser?.id;
+                      if (userId != null) {
+                        final firestoreService = context.read<FirestoreService>();
+                        final updatedChildren = appState.currentUser!.children.map((c) => c.toJson()).toList();
+                        firestoreService.updateUser(userId, {'children': updatedChildren});
+                      }
+
                       Navigator.pop(ctx);
-                      setState(() {});
+                      setState(() {
+                        _user = appState.currentUser!;
+                      });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('${nameCtrl.text} נוסף/ה בהצלחה! 🎉', style: const TextStyle(fontFamily: 'Heebo')),
@@ -1484,6 +1497,174 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 ),
                 const SizedBox(height: 12),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditChildSheet(ChildModel child) {
+    HapticFeedback.mediumImpact();
+    final nameCtrl = TextEditingController(text: child.name);
+    DateTime selectedBirthDate = child.birthDate;
+    String selectedGender = child.gender == Gender.male ? 'male' : 'female';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 20),
+                  Text('עריכת פרטי ${child.name}', style: const TextStyle(fontFamily: 'Heebo', fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: nameCtrl,
+                    textDirection: TextDirection.rtl,
+                    decoration: InputDecoration(
+                      labelText: 'שם הילד/ה',
+                      labelStyle: const TextStyle(fontFamily: 'Heebo'),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedBirthDate,
+                        firstDate: DateTime(2015),
+                        lastDate: DateTime.now(),
+                        locale: const Locale('he'),
+                      );
+                      if (picked != null) {
+                        setSheetState(() => selectedBirthDate = picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cake_rounded, color: AppColors.primary),
+                          const SizedBox(width: 12),
+                          Text(
+                            DateFormat('dd/MM/yyyy').format(selectedBirthDate),
+                            style: const TextStyle(fontFamily: 'Heebo', fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setSheetState(() => selectedGender = 'female'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: selectedGender == 'female' ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedGender == 'female' ? AppColors.primary : AppColors.border),
+                            ),
+                            child: Center(child: Text('👧 בת', style: TextStyle(fontFamily: 'Heebo', fontWeight: selectedGender == 'female' ? FontWeight.bold : FontWeight.normal))),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setSheetState(() => selectedGender = 'male'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: selectedGender == 'male' ? AppColors.info.withValues(alpha: 0.15) : AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedGender == 'male' ? AppColors.info : AppColors.border),
+                            ),
+                            child: Center(child: Text('👦 בן', style: TextStyle(fontFamily: 'Heebo', fontWeight: selectedGender == 'male' ? FontWeight.bold : FontWeight.normal))),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (nameCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('נא להזין שם', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                          );
+                          return;
+                        }
+                        final gender = selectedGender == 'male' ? Gender.male : Gender.female;
+                        final updatedChild = child.copyWith(
+                          name: nameCtrl.text.trim(),
+                          birthDate: selectedBirthDate,
+                          gender: gender,
+                        );
+
+                        // Update in AppState (preserves child order)
+                        final appState = context.read<AppState>();
+                        appState.updateChild(updatedChild);
+
+                        // Update in TrackingService
+                        final trackingService = context.read<TrackingService>();
+                        if (trackingService.isInitialized) {
+                          trackingService.updateChild(trackingService.childModelToProfile(updatedChild));
+                        }
+
+                        // Persist to Firestore
+                        final userId = appState.currentUser?.id;
+                        if (userId != null) {
+                          final firestoreService = context.read<FirestoreService>();
+                          final updatedChildren = appState.currentUser!.children.map((c) => c.toJson()).toList();
+                          firestoreService.updateUser(userId, {'children': updatedChildren});
+                        }
+
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _user = appState.currentUser!;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${nameCtrl.text.trim()} עודכן/ה בהצלחה!', style: const TextStyle(fontFamily: 'Heebo')),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('שמור שינויים', style: TextStyle(fontFamily: 'Heebo', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
           ),
         ),

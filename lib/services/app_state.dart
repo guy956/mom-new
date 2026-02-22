@@ -415,7 +415,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Update user profile fields
+  /// Update user profile fields.
+  /// Pass empty string for [profileImage] to clear it (set to null).
   void updateUserProfile({
     String? fullName,
     String? phone,
@@ -425,6 +426,7 @@ class AppState extends ChangeNotifier {
     String? profession,
     String? maritalStatus,
     String? profileImage,
+    bool clearProfileImage = false,
     List<String>? interests,
   }) {
     if (_currentUser == null) return;
@@ -436,7 +438,7 @@ class AppState extends ChangeNotifier {
       bio: bio ?? _currentUser!.bio,
       profession: profession ?? _currentUser!.profession,
       maritalStatus: maritalStatus ?? _currentUser!.maritalStatus,
-      profileImage: profileImage ?? _currentUser!.profileImage,
+      profileImage: clearProfileImage ? null : (profileImage ?? _currentUser!.profileImage),
       interests: interests ?? _currentUser!.interests,
     );
     _persistUserData();
@@ -456,6 +458,15 @@ class AppState extends ChangeNotifier {
   void removeChild(String childId) {
     if (_currentUser == null) return;
     final children = _currentUser!.children.where((c) => c.id != childId).toList();
+    _currentUser = _currentUser!.copyWith(children: children);
+    _persistUserData();
+    notifyListeners();
+  }
+
+  /// Update an existing child in-place (preserves order)
+  void updateChild(ChildModel updatedChild) {
+    if (_currentUser == null) return;
+    final children = _currentUser!.children.map((c) => c.id == updatedChild.id ? updatedChild : c).toList();
     _currentUser = _currentUser!.copyWith(children: children);
     _persistUserData();
     notifyListeners();

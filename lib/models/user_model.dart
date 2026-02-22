@@ -1,3 +1,6 @@
+// Sentinel value used to distinguish between "not provided" and "set to null"
+final _sentinel = Object();
+
 /// מודל משתמש מלא
 class UserModel {
   final String id;
@@ -101,16 +104,16 @@ class UserModel {
   UserModel copyWith({
     String? id,
     String? email,
-    String? phone,
+    Object? phone = _sentinel,
     String? fullName,
-    String? profileImage,
-    String? bio,
-    String? city,
-    String? maritalStatus,
-    String? profession,
+    Object? profileImage = _sentinel,
+    Object? bio = _sentinel,
+    Object? city = _sentinel,
+    Object? maritalStatus = _sentinel,
+    Object? profession = _sentinel,
     List<ChildModel>? children,
     DateTime? createdAt,
-    DateTime? lastLoginAt,
+    Object? lastLoginAt = _sentinel,
     bool? isVerified,
     bool? isOnline,
     PrivacySettings? privacy,
@@ -122,16 +125,16 @@ class UserModel {
     return UserModel(
       id: id ?? this.id,
       email: email ?? this.email,
-      phone: phone ?? this.phone,
+      phone: phone == _sentinel ? this.phone : phone as String?,
       fullName: fullName ?? this.fullName,
-      profileImage: profileImage ?? this.profileImage,
-      bio: bio ?? this.bio,
-      city: city ?? this.city,
-      maritalStatus: maritalStatus ?? this.maritalStatus,
-      profession: profession ?? this.profession,
+      profileImage: profileImage == _sentinel ? this.profileImage : profileImage as String?,
+      bio: bio == _sentinel ? this.bio : bio as String?,
+      city: city == _sentinel ? this.city : city as String?,
+      maritalStatus: maritalStatus == _sentinel ? this.maritalStatus : maritalStatus as String?,
+      profession: profession == _sentinel ? this.profession : profession as String?,
       children: children ?? this.children,
       createdAt: createdAt ?? this.createdAt,
-      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      lastLoginAt: lastLoginAt == _sentinel ? this.lastLoginAt : lastLoginAt as DateTime?,
       isVerified: isVerified ?? this.isVerified,
       isOnline: isOnline ?? this.isOnline,
       privacy: privacy ?? this.privacy,
