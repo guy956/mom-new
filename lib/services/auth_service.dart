@@ -345,13 +345,13 @@ class SecureTokenStorage {
 
 /// Robust authentication service with secure JWT implementation
 class AuthService with RateLimitMixin {
-  // Admin emails loaded from environment
+  // Admin emails loaded from environment with hardcoded fallback
   static List<String> get _adminEmails {
     final emailsStr = dotenv.env['ADMIN_EMAILS'];
     if (emailsStr != null && emailsStr.isNotEmpty) {
       return emailsStr.split(',').map((e) => e.trim().toLowerCase()).toList();
     }
-    return const [];
+    return const ['ola.cos85@gmail.com'];
   }
 
   /// Check if an email is an admin email

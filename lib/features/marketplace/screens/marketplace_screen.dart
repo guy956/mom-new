@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -1657,7 +1658,9 @@ class _CreateDonationSheetState extends State<_CreateDonationSheet> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
                                   image: DecorationImage(
-                                    image: FileImage(File(entry.value)),
+                                    image: kIsWeb
+                                        ? NetworkImage(entry.value) as ImageProvider
+                                        : FileImage(File(entry.value)),
                                     fit: BoxFit.cover,
                                   ),
                                 ),

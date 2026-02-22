@@ -151,6 +151,18 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
           'updatedAt': FieldValue.serverTimestamp(),
           'approvedAt': FieldValue.serverTimestamp(),
         });
+
+        // Notify all users about the new chat group
+        try {
+          final notificationService = NotificationService();
+          await notificationService.notifyAllUsersNewChatGroup(
+            groupId: itemId,
+            groupName: title,
+            groupDescription: contentData['description'] ?? '',
+          );
+        } catch (e) {
+          debugPrint('[AdminApprovalsTab] Error notifying users about chat group: $e');
+        }
       }
 
       // Log activity

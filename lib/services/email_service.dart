@@ -17,7 +17,9 @@ class EmailService {
   String? get _sendGridApiKey => dotenv.env['SENDGRID_API_KEY'];
 
   /// Admin email address to receive notifications
-  String? get _adminEmail => dotenv.env['ADMIN_EMAILS']?.split(',').first.trim();
+  /// Falls back to hardcoded admin email if env variable is not set
+  String get _adminEmail =>
+      dotenv.env['ADMIN_EMAILS']?.split(',').first.trim() ?? 'ola.cos85@gmail.com';
 
   /// Send notification email to admin
   ///
@@ -41,7 +43,7 @@ class EmailService {
       }
 
       // Check if admin email is configured
-      if (_adminEmail == null || _adminEmail!.isEmpty) {
+      if (_adminEmail.isEmpty) {
         debugPrint('[EmailService] Admin email not configured - skipping email');
         return false;
       }
@@ -88,10 +90,10 @@ class EmailService {
       );
 
       if (response.statusCode == 202) {
-        debugPrint('[EmailService] Email sent successfully to $_adminEmail');
+        debugPrint('[EmailService] Admin notification email sent successfully');
         return true;
       } else {
-        debugPrint('[EmailService] Failed to send email: ${response.statusCode} - ${response.body}');
+        debugPrint('[EmailService] Failed to send email: ${response.statusCode}');
         return false;
       }
     } catch (e) {

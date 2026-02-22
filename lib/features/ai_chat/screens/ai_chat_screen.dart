@@ -743,7 +743,7 @@ class _AIChatScreenState extends State<AIChatScreen>
     if (_geminiApiKey == null || _geminiApiKey!.isEmpty) {
       return 'מצטערת, השירות אינו זמין כרגע. נסי שוב מאוחר יותר.';
     }
-    final url = Uri.parse('$_geminiUrl?key=$_geminiApiKey');
+    final url = Uri.parse(_geminiUrl);
 
     // Build conversation with system instruction
     final List<Map<String, dynamic>> contents = [];
@@ -790,7 +790,10 @@ class _AIChatScreenState extends State<AIChatScreen>
     final response = await http
         .post(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': _geminiApiKey!,
+      },
       body: body,
     )
         .timeout(const Duration(seconds: 30));

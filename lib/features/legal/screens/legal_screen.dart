@@ -430,15 +430,13 @@ class _AccessibilityStatementTab extends StatelessWidget {
           _buildParagraph(
             'דיווח על בעיות נגישות',
             'אם נתקלת בבעיית נגישות באפליקציה, אנא פנה אלינו:\n\n'
-            'דוא"ל: accessibility@momit.co.il\n'
-            'טלפון: 03-1234567\n\n'
+            'דוא"ל: accessibility@momit.co.il\n\n'
             'אנו מתחייבים לטפל בכל פנייה בתוך 14 ימי עסקים.',
           ),
           _buildParagraph(
             'רכז נגישות',
             'שם: צוות MOMIT\n'
-            'דוא"ל: accessibility@momit.co.il\n'
-            'טלפון: 03-1234567',
+            'דוא"ל: accessibility@momit.co.il',
           ),
         ],
       ),

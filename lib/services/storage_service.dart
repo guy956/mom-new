@@ -1,9 +1,13 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 
+// Conditional import for dart:io (only available on mobile)
+import 'storage_service_io.dart' if (dart.library.js_interop) 'storage_service_web.dart' as platform;
+
 /// Service for uploading and managing files in Firebase Storage
+/// Supports both mobile (File-based) and web (bytes-based) uploads
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
@@ -15,15 +19,15 @@ class StorageService {
   static const int _maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
 
   /// Upload an image file to Firebase Storage
+  /// On web, pass [fileBytes] instead of relying on file path
   /// Returns the download URL of the uploaded file
   Future<String> uploadImage({
     required String filePath,
     required String folder,
     String? customFileName,
+    Uint8List? fileBytes,
   }) async {
     try {
-      // Create file reference
-      final File file = File(filePath);
       final String fileName = customFileName ?? path.basename(filePath);
       final String ext = path.extension(fileName).toLowerCase();
 
@@ -32,32 +36,35 @@ class StorageService {
         throw Exception('File type $ext is not allowed. Allowed: ${_allowedImageExtensions.join(', ')}');
       }
 
-      // Validate file size
-      if (!kIsWeb) {
-        final fileSize = await file.length();
-        if (fileSize > _maxFileSizeBytes) {
-          throw Exception('File too large (${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB). Maximum: ${_maxFileSizeBytes ~/ 1024 ~/ 1024} MB');
-        }
-      }
-
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fullPath = '$folder/${timestamp}_$fileName';
       final String contentType = _mimeTypes[ext] ?? 'image/jpeg';
-
-      // Upload file
-      final Reference ref = _storage.ref().child(fullPath);
-      final UploadTask uploadTask = ref.putFile(
-        file,
-        SettableMetadata(
-          contentType: contentType,
-          customMetadata: {
-            'uploadedAt': DateTime.now().toIso8601String(),
-          },
-        ),
+      final metadata = SettableMetadata(
+        contentType: contentType,
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
       );
 
-      // Wait for upload to complete
-      final TaskSnapshot snapshot = await uploadTask;
+      final Reference ref = _storage.ref().child(fullPath);
+      TaskSnapshot snapshot;
+
+      if (kIsWeb) {
+        // Web: use putData with bytes
+        final bytes = fileBytes ?? await platform.readFileBytes(filePath);
+        if (bytes.length > _maxFileSizeBytes) {
+          throw Exception('File too large (${(bytes.length / 1024 / 1024).toStringAsFixed(1)} MB). Maximum: ${_maxFileSizeBytes ~/ 1024 ~/ 1024} MB');
+        }
+        snapshot = await ref.putData(bytes, metadata);
+      } else {
+        // Mobile: use putFile with dart:io File
+        final file = platform.createFile(filePath);
+        final fileSize = await platform.getFileLength(file);
+        if (fileSize > _maxFileSizeBytes) {
+          throw Exception('File too large (${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB). Maximum: ${_maxFileSizeBytes ~/ 1024 ~/ 1024} MB');
+        }
+        snapshot = await ref.putFile(file, metadata);
+      }
 
       // Get download URL
       final String downloadUrl = await snapshot.ref.getDownloadURL();
@@ -75,18 +82,20 @@ class StorageService {
   Future<List<String>> uploadMultipleImages({
     required List<String> filePaths,
     required String folder,
+    List<Uint8List>? fileBytesList,
   }) async {
     final List<String> downloadUrls = [];
 
-    for (final filePath in filePaths) {
+    for (int i = 0; i < filePaths.length; i++) {
       try {
         final url = await uploadImage(
-          filePath: filePath,
+          filePath: filePaths[i],
           folder: folder,
+          fileBytes: fileBytesList != null && i < fileBytesList.length ? fileBytesList[i] : null,
         );
         downloadUrls.add(url);
       } catch (e) {
-        debugPrint('[StorageService] Failed to upload image $filePath: $e');
+        debugPrint('[StorageService] Failed to upload image ${filePaths[i]}: $e');
         // Continue uploading other images even if one fails
       }
     }
@@ -123,9 +132,9 @@ class StorageService {
     required String filePath,
     required String folder,
     String? customFileName,
+    Uint8List? fileBytes,
   }) async {
     try {
-      final File file = File(filePath);
       final String fileName = customFileName ?? path.basename(filePath);
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String fullPath = '$folder/${timestamp}_$fileName';
@@ -139,18 +148,24 @@ class StorageService {
         contentType = 'application/msword';
       }
 
-      final Reference ref = _storage.ref().child(fullPath);
-      final UploadTask uploadTask = ref.putFile(
-        file,
-        SettableMetadata(
-          contentType: contentType,
-          customMetadata: {
-            'uploadedAt': DateTime.now().toIso8601String(),
-          },
-        ),
+      final metadata = SettableMetadata(
+        contentType: contentType,
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
       );
 
-      final TaskSnapshot snapshot = await uploadTask;
+      final Reference ref = _storage.ref().child(fullPath);
+      TaskSnapshot snapshot;
+
+      if (kIsWeb) {
+        final bytes = fileBytes ?? await platform.readFileBytes(filePath);
+        snapshot = await ref.putData(bytes, metadata);
+      } else {
+        final file = platform.createFile(filePath);
+        snapshot = await ref.putFile(file, metadata);
+      }
+
       final String downloadUrl = await snapshot.ref.getDownloadURL();
 
       debugPrint('[StorageService] Document uploaded successfully: $downloadUrl');

@@ -135,7 +135,7 @@ class AppConfiguration {
         'forceUpdate': false,
         'updateMessage': 'גרסה חדשה זמינה! עדכני עכשיו כדי לקבל את התכונות החדשות.',
         'supportEmail': 'support@momit.co.il',
-        'supportPhone': '03-1234567',
+        'supportPhone': '',
       },
     );
   }

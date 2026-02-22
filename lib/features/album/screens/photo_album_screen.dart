@@ -53,9 +53,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
       'emoji': emojis[e.key % emojis.length],
       'color': colors[e.key % colors.length],
     }).toList();
-    if (_children.isEmpty) {
-      _children = [{'name': 'ילד/ה', 'emoji': '👶', 'color': AppColors.primary}];
-    }
+    // No placeholder child - user must add real children via profile
   }
 
   @override
@@ -115,6 +113,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
   }
 
   List<Map<String, dynamic>> get _filteredAlbums {
+    if (_children.isEmpty) return _albums;
     final childName = _children[_selectedChild]['name'];
     return _albums.where((a) => a['child'] == childName).toList();
   }
@@ -138,7 +137,30 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
           ),
         ],
       ),
-      body: Column(
+      body: _children.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.photo_album_outlined, size: 80, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+                  const SizedBox(height: 16),
+                  Text('אלבום התמונות שלך', style: TextStyle(fontFamily: 'Heebo', fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const SizedBox(height: 8),
+                  Text('הוסיפי ילדים דרך הפרופיל כדי להתחיל ליצור אלבומים', style: TextStyle(fontFamily: 'Heebo', fontSize: 14, color: AppColors.textSecondary), textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
+                    label: const Text('חזרה לפרופיל', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+                ],
+              ),
+            ),
+          )
+        : Column(
         children: [
           _buildChildSelector(),
           _buildStats(),
@@ -884,7 +906,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                 const SizedBox(height: 20),
                 const Text('יצירת אלבום חדש', style: TextStyle(fontFamily: 'Heebo', fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text('עבור ${_children[_selectedChild]['name']} ${_children[_selectedChild]['emoji']}', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)),
+                Text('עבור ${_children.isNotEmpty ? '${_children[_selectedChild]['name']} ${_children[_selectedChild]['emoji']}' : 'האלבום שלי'}', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -954,7 +976,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                       setState(() {
                         _albums.add({
                           'title': nameCtrl.text,
-                          'child': _children[_selectedChild]['name'],
+                          'child': _children.isNotEmpty ? _children[_selectedChild]['name'] : 'כללי',
                           'count': 0,
                           'isPrivate': isPrivate,
                           'coverColor': AppColors.primary,
