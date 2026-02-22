@@ -386,7 +386,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         label: 'ניהול תוכן',
         icon: Icons.content_paste_rounded,
         permission: Permission.manageTips,
-        builder: () => const AdminContentManagerTab(),
+        builder: () => AdminContentManagerTab(onNavigateToTab: _navigateToTab),
       ),
       // 18. Audit - Security & audit log
       _AdminTab(

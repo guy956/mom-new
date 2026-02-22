@@ -358,6 +358,7 @@ class FirestoreService extends ChangeNotifier {
       _db.collection('tips').add({
         ...data,
         'active': data['active'] ?? true,
+        'status': data['status'] ?? 'approved',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -374,6 +375,12 @@ class FirestoreService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+  Future<void> updateTipStatus(String tipId, String status) =>
+      _db.collection('tips').doc(tipId).update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
   Future<void> deleteTip(String tipId) =>
       _db.collection('tips').doc(tipId).delete();
 
@@ -385,6 +392,7 @@ class FirestoreService extends ChangeNotifier {
       batch.set(ref, {
         ...tip,
         'active': true,
+        'status': tip['status'] ?? 'approved',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -427,6 +435,87 @@ class FirestoreService extends ChangeNotifier {
 
   Future<void> deletePost(String postId) =>
       _db.collection('posts').doc(postId).delete();
+
+  // ════════════════════════════════════════════════════════════════
+  //  POST COMMENTS CRUD (subcollection: posts/{postId}/comments)
+  // ════════════════════════════════════════════════════════════════
+
+  /// Stream of comments for a specific post, ordered by creation time
+  Stream<List<Map<String, dynamic>>> getCommentsStream(String postId) =>
+      _db.collection('posts').doc(postId).collection('comments')
+          .orderBy('createdAt', descending: false)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Add a comment to a post and increment the post's comments count
+  Future<void> addComment(String postId, Map<String, dynamic> commentData) async {
+    await _db.collection('posts').doc(postId).collection('comments').add({
+      ...commentData,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    // Increment the comments count on the post document
+    await _db.collection('posts').doc(postId).update({
+      'comments': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Delete a comment from a post and decrement the post's comments count
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _db.collection('posts').doc(postId).collection('comments').doc(commentId).delete();
+    await _db.collection('posts').doc(postId).update({
+      'comments': FieldValue.increment(-1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  //  USER NOTIFICATIONS (per-user collection)
+  // ════════════════════════════════════════════════════════════════
+
+  /// Stream of notifications for a specific user, ordered by creation time descending
+  Stream<List<Map<String, dynamic>>> userNotificationsStream(String userId) =>
+      _db.collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots()
+          .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+
+  /// Mark a single notification as read
+  Future<void> markNotificationRead(String notificationId) =>
+      _db.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+      });
+
+  /// Mark all notifications as read for a user
+  Future<void> markAllNotificationsRead(String userId) async {
+    final snap = await _db.collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
+  }
+
+  /// Delete a notification
+  Future<void> deleteNotification(String notificationId) =>
+      _db.collection('notifications').doc(notificationId).delete();
+
+  /// Delete all notifications for a user
+  Future<void> deleteAllNotifications(String userId) async {
+    final snap = await _db.collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .get();
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  REPORTS CRUD

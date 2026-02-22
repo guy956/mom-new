@@ -669,8 +669,21 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
               ),
               ElevatedButton(
                 onPressed: () async {
+                  final title = titleController.text.trim();
+                  if (title.isEmpty) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('חובה למלא כותרת', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+                  if (selectedDate == null && !isEditing) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('חובה לבחור תאריך', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
                   final eventData = {
-                    'title': titleController.text.trim(),
+                    'title': title,
                     'date': selectedDate,
                     'time': timeText != 'בחר שעה' ? timeText : null,
                     'location': locationController.text.trim(),
@@ -688,7 +701,7 @@ class _AdminEventsTabState extends State<AdminEventsTab> {
                       type: 'event',
                     );
                   } else {
-                    eventData['status'] = 'pending';
+                    eventData['status'] = 'approved';
                     eventData['attendees'] = 0;
                     await fs.createEvent(eventData);
                     await fs.logActivity(

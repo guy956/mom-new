@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -70,51 +71,196 @@ class _AdminOverviewTabState extends State<AdminOverviewTab> {
     _loadData();
   }
 
+  String _buildCsvContent() {
+    final buffer = StringBuffer();
+    buffer.writeln('MOMIT Analytics Report - ${_selectedRange.label}');
+    buffer.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
+    buffer.writeln('');
+
+    // User growth data
+    buffer.writeln('--- User Growth ---');
+    buffer.writeln('Date,New Users');
+    for (final entry in _userGrowthData.entries) {
+      buffer.writeln('${entry.key},${entry.value}');
+    }
+    buffer.writeln('Total New Users,${_userGrowthData.values.fold(0, (a, b) => a + b)}');
+    buffer.writeln('');
+
+    // Feature usage data
+    buffer.writeln('--- Feature Usage ---');
+    buffer.writeln('Feature,Usage Count');
+    for (final entry in _featureUsageData.entries) {
+      final name = AnalyticsService.featureNames[entry.key] ?? entry.key;
+      buffer.writeln('$name,${entry.value}');
+    }
+    buffer.writeln('');
+
+    // Engagement data
+    if (_engagementData.isNotEmpty) {
+      buffer.writeln('--- Content Engagement ---');
+      buffer.writeln('Category,Metric,Value');
+      for (final entry in _engagementData.entries) {
+        if (entry.value is Map) {
+          final map = entry.value as Map<String, dynamic>;
+          for (final metric in map.entries) {
+            buffer.writeln('${entry.key},${metric.key},${metric.value}');
+          }
+        } else {
+          buffer.writeln('${entry.key},,${entry.value}');
+        }
+      }
+      buffer.writeln('');
+    }
+
+    // Revenue data
+    if (_revenueData.isNotEmpty) {
+      buffer.writeln('--- Revenue ---');
+      buffer.writeln('Metric,Value');
+      for (final entry in _revenueData.entries) {
+        buffer.writeln('${entry.key},${entry.value}');
+      }
+    }
+
+    return buffer.toString();
+  }
+
   Future<void> _exportToCsv() async {
     try {
       final csv = await _analyticsService.exportToCsv(
         dataType: 'analytics',
         range: _selectedRange,
       );
-      
-      // On web, trigger download via share_plus or show message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('הנתונים יוצאו בהצלחה')),
+
+      final buffer = StringBuffer();
+      buffer.write(_buildCsvContent());
+
+      // Append the raw analytics CSV from the service
+      if (csv.isNotEmpty) {
+        buffer.writeln('');
+        buffer.writeln('--- Raw Analytics Data ---');
+        buffer.write(csv);
+      }
+
+      final fullCsv = buffer.toString();
+
+      // Share the CSV data
+      await SharePlus.instance.share(
+        ShareParams(text: fullCsv, subject: 'MOMIT Analytics - ${_selectedRange.label}'),
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('הנתונים יוצאו בהצלחה', style: TextStyle(fontFamily: 'Heebo'))),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('שגיאה בייצוא: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('שגיאה בייצוא: $e', style: const TextStyle(fontFamily: 'Heebo'))),
+        );
+      }
     }
   }
 
   Future<void> _exportToPdf() async {
-    // For now, show a summary that could be printed/saved as PDF
-    // In a real app, you'd use a PDF generation library like pdf or printing
+    // Build a comprehensive text report (PDF library not available, so generate
+    // a shareable text summary that can be pasted/printed)
+    final report = StringBuffer();
+    report.writeln('=== MOMIT Analytics Report ===');
+    report.writeln('Period: ${_selectedRange.label}');
+    report.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
+    report.writeln('');
+    report.writeln('-- User Growth --');
+    report.writeln('New users in period: ${_userGrowthData.values.fold(0, (a, b) => a + b)}');
+    report.writeln('');
+    report.writeln('-- Feature Usage --');
+    for (final e in _featureUsageData.entries) {
+      final name = AnalyticsService.featureNames[e.key] ?? e.key;
+      report.writeln('  $name: ${e.value}');
+    }
+    report.writeln('');
+    if (_engagementData.isNotEmpty) {
+      report.writeln('-- Content Engagement --');
+      for (final entry in _engagementData.entries) {
+        if (entry.value is Map) {
+          final map = entry.value as Map<String, dynamic>;
+          report.writeln('  ${entry.key}: ${map.entries.map((m) => '${m.key}=${m.value}').join(', ')}');
+        }
+      }
+      report.writeln('');
+    }
+    if (_revenueData.isNotEmpty) {
+      report.writeln('-- Revenue --');
+      for (final entry in _revenueData.entries) {
+        report.writeln('  ${entry.key}: ${entry.value}');
+      }
+    }
+
+    final reportText = report.toString();
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('דוח אנליטיקס'),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('דוח אנליטיקס', style: TextStyle(fontFamily: 'Heebo')),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('תקופה: ${_selectedRange.label}'),
+              Text('תקופה: ${_selectedRange.label}', style: const TextStyle(fontFamily: 'Heebo')),
               const SizedBox(height: 16),
-              const Text('נתוני משתמשים:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('צמיחה: ${_userGrowthData.values.fold(0, (a, b) => a + b)} משתמשים חדשים'),
+              const Text('נתוני משתמשים:', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Heebo')),
+              Text('צמיחה: ${_userGrowthData.values.fold(0, (a, b) => a + b)} משתמשים חדשים', style: const TextStyle(fontFamily: 'Heebo')),
               const SizedBox(height: 8),
-              const Text('שימוש בתכונות:', style: TextStyle(fontWeight: FontWeight.bold)),
-              ..._featureUsageData.entries.map((e) => 
-                Text('${AnalyticsService.featureNames[e.key] ?? e.key}: ${e.value}')),
+              const Text('שימוש בתכונות:', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Heebo')),
+              ..._featureUsageData.entries.map((e) =>
+                Text('${AnalyticsService.featureNames[e.key] ?? e.key}: ${e.value}', style: const TextStyle(fontFamily: 'Heebo'))),
+              if (_engagementData.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text('מעורבות תוכן:', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Heebo')),
+                ..._engagementData.entries.map((entry) {
+                  if (entry.value is Map) {
+                    final map = entry.value as Map<String, dynamic>;
+                    return Text('${entry.key}: ${map.entries.map((m) => '${m.key}=${m.value}').join(', ')}', style: const TextStyle(fontFamily: 'Heebo'));
+                  }
+                  return Text('${entry.key}: ${entry.value}', style: const TextStyle(fontFamily: 'Heebo'));
+                }),
+              ],
+              if (_revenueData.isNotEmpty && (_revenueData['total'] ?? 0.0) > 0) ...[
+                const SizedBox(height: 8),
+                const Text('הכנסות:', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Heebo')),
+                ..._revenueData.entries.map((e) =>
+                  Text('${e.key}: ${e.value.toStringAsFixed(2)}', style: const TextStyle(fontFamily: 'Heebo'))),
+              ],
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('סגור'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: reportText));
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('הדוח הועתק ללוח', style: TextStyle(fontFamily: 'Heebo'))),
+              );
+            },
+            child: const Text('העתק ללוח', style: TextStyle(fontFamily: 'Heebo')),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await SharePlus.instance.share(
+                ShareParams(text: reportText, subject: 'MOMIT Report - ${_selectedRange.label}'),
+              );
+            },
+            child: const Text('שתף', style: TextStyle(fontFamily: 'Heebo')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('סגור', style: TextStyle(fontFamily: 'Heebo')),
           ),
         ],
       ),

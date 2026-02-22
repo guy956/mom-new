@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/services/firestore_service.dart';
@@ -687,6 +688,10 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
   Widget _buildPostActions(Map<String, dynamic> post) {
     final likes = (post['likes'] ?? 0) is int ? (post['likes'] ?? 0) as int : 0;
     final comments = (post['comments'] ?? 0) is int ? (post['comments'] ?? 0) as int : 0;
+    final likedBy = List<String>.from(post['likedBy'] ?? []);
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentUserId = appState.currentUser?.id ?? '';
+    final isLiked = likedBy.contains(currentUserId);
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -742,9 +747,9 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildActionButton(
-                icon: Icons.favorite_border,
+                icon: isLiked ? Icons.favorite : Icons.favorite_border,
                 label: 'אהבתי',
-                color: AppColors.textSecondary,
+                color: isLiked ? AppColors.secondary : AppColors.textSecondary,
                 onTap: () => _toggleLike(post),
               ),
               _buildActionButton(
@@ -819,8 +824,27 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
     final fs = Provider.of<FirestoreService>(context, listen: false);
     final postId = post['id'];
     if (postId == null) return;
-    final currentLikes = (post['likes'] ?? 0) is int ? (post['likes'] ?? 0) as int : 0;
-    fs.updatePost(postId, {'likes': currentLikes + 1});
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentUserId = appState.currentUser?.id ?? '';
+    if (currentUserId.isEmpty) return;
+
+    final likedBy = List<String>.from(post['likedBy'] ?? []);
+    final alreadyLiked = likedBy.contains(currentUserId);
+
+    if (alreadyLiked) {
+      // Unlike: remove user from likedBy, decrement likes
+      fs.updatePost(postId, {
+        'likedBy': FieldValue.arrayRemove([currentUserId]),
+        'likes': FieldValue.increment(-1),
+      });
+    } else {
+      // Like: add user to likedBy, increment likes
+      fs.updatePost(postId, {
+        'likedBy': FieldValue.arrayUnion([currentUserId]),
+        'likes': FieldValue.increment(1),
+      });
+    }
   }
 
   void _showComments(Map<String, dynamic> post) {
@@ -853,22 +877,22 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildShareOption(Icons.copy, 'העתק קישור', () {
+                  final text = '${post['title'] ?? ''}\n${post['content'] ?? ''}';
+                  Clipboard.setData(ClipboardData(text: text));
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('הקישור הועתק!', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success),
+                    const SnackBar(content: Text('הטקסט הועתק!', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success),
                   );
                 }),
                 _buildShareOption(Icons.chat, 'WhatsApp', () {
+                  final text = '${post['title'] ?? ''}\n${post['content'] ?? ''}\n\n- MOMIT';
+                  SharePlus.instance.share(ShareParams(text: text));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('נשלח ב-WhatsApp!', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success),
-                  );
                 }),
                 _buildShareOption(Icons.send, 'שלחי לחברה', () {
+                  final text = '${post['title'] ?? ''}\n${post['content'] ?? ''}\n\n- MOMIT';
+                  SharePlus.instance.share(ShareParams(text: text));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('נשלח בהצלחה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.success),
-                  );
                 }),
               ],
             ),
@@ -987,9 +1011,45 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     super.dispose();
   }
 
+  void _submitComment() {
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+
+    final postId = widget.post['id'];
+    if (postId == null) return;
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentUser = appState.currentUser;
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+
+    fs.addComment(postId, {
+      'text': text,
+      'userId': currentUser?.id ?? '',
+      'userName': currentUser?.fullName ?? 'אנונימית',
+      'createdAt': Timestamp.now(),
+    });
+
+    _commentController.clear();
+  }
+
+  DateTime _parseCommentTimestamp(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final commentsCount = (widget.post['comments'] ?? 0);
+    final postId = widget.post['id'] as String?;
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
@@ -1001,15 +1061,95 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('תגובות ($commentsCount)', style: const TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
+            child: Text('תגובות', style: const TextStyle(fontFamily: 'Heebo', fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           Expanded(
-            child: Center(
-              child: Text(
-                'תגובות יטענו מ-Firestore בקרוב',
-                style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary),
-              ),
-            ),
+            child: postId == null
+                ? Center(child: Text('שגיאה: לא נמצא פוסט', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)))
+                : StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: fs.getCommentsStream(postId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final comments = snapshot.data ?? [];
+                      if (comments.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textHint.withValues(alpha: 0.5)),
+                              const SizedBox(height: 12),
+                              Text('אין תגובות עדיין', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary, fontSize: 15)),
+                              const SizedBox(height: 4),
+                              Text('היי הראשונה להגיב!', style: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint, fontSize: 13)),
+                            ],
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: comments.length,
+                        itemBuilder: (context, index) {
+                          final comment = comments[index];
+                          final userName = (comment['userName'] ?? 'אנונימית').toString();
+                          final text = (comment['text'] ?? '').toString();
+                          final createdAt = _parseCommentTimestamp(comment['createdAt']);
+                          final commentId = comment['id'] as String?;
+                          final commentUserId = (comment['userId'] ?? '').toString();
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final currentUserId = appState.currentUser?.id ?? '';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                      child: Icon(Icons.person, color: AppColors.primary, size: 16),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(userName, style: const TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w600, fontSize: 13)),
+                                          Text(
+                                            timeago.format(createdAt, locale: 'he'),
+                                            style: TextStyle(fontFamily: 'Heebo', fontSize: 11, color: AppColors.textHint),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (commentUserId == currentUserId && commentId != null)
+                                      GestureDetector(
+                                        onTap: () => fs.deleteComment(postId, commentId),
+                                        child: Icon(Icons.delete_outline, size: 18, color: AppColors.textHint),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  text,
+                                  style: const TextStyle(fontFamily: 'Heebo', fontSize: 14, height: 1.4),
+                                  textDirection: TextDirection.rtl,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
           // Comment input
           SafeArea(
@@ -1031,32 +1171,12 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
+                      onSubmitted: (_) => _submitComment(),
                     ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () {
-                      if (_commentController.text.trim().isNotEmpty) {
-                        // Increment comments count on the post
-                        final postId = widget.post['id'];
-                        if (postId != null) {
-                          final currentComments = (widget.post['comments'] ?? 0) is int
-                              ? (widget.post['comments'] ?? 0) as int
-                              : 0;
-                          Provider.of<FirestoreService>(context, listen: false)
-                              .updatePost(postId, {'comments': currentComments + 1});
-                        }
-                        _commentController.clear();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('התגובה נשלחה!', style: TextStyle(fontFamily: 'Heebo')),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                        );
-                      }
-                    },
+                    onTap: _submitComment,
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),

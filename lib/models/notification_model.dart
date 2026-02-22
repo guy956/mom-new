@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// מודל התראה
 class NotificationModel {
   final String id;
@@ -39,7 +41,7 @@ class NotificationModel {
       actionUrl: json['actionUrl'],
       referenceId: json['referenceId'],
       referenceType: json['referenceType'],
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: _parseDateTime(json['createdAt']),
       isRead: json['isRead'] ?? false,
       data: json['data'],
     );
@@ -87,6 +89,16 @@ class NotificationModel {
       isRead: isRead ?? this.isRead,
       data: data ?? this.data,
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 
   /// התראות לדוגמה

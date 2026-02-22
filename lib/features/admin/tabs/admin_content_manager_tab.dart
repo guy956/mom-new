@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
+import 'package:mom_connect/services/firestore_service.dart';
 
 /// Content Manager Tab - Allows admins to manage app content
 class AdminContentManagerTab extends StatefulWidget {
-  const AdminContentManagerTab({super.key});
+  final void Function(String tabId)? onNavigateToTab;
+  const AdminContentManagerTab({super.key, this.onNavigateToTab});
 
   @override
   State<AdminContentManagerTab> createState() => _AdminContentManagerTabState();
@@ -74,6 +77,7 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
   }
 
   Widget _buildContentOverviewCard() {
+    final fs = context.read<FirestoreService>();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -91,17 +95,73 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildStatRow('פוסטים', '1,234'),
-            _buildStatRow('תגובות', '5,678'),
-            _buildStatRow('תמונות', '3,456'),
-            _buildStatRow('סרטונים', '789'),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.postsStream,
+              builder: (_, snap) => _buildStatRow(
+                'פוסטים',
+                snap.hasData ? '${snap.data!.length}' : '...',
+              ),
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.tipsStream,
+              builder: (_, snap) => _buildStatRow(
+                'טיפים',
+                snap.hasData ? '${snap.data!.length}' : '...',
+              ),
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.eventsStream,
+              builder: (_, snap) => _buildStatRow(
+                'אירועים',
+                snap.hasData ? '${snap.data!.length}' : '...',
+              ),
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.marketplaceStream,
+              builder: (_, snap) => _buildStatRow(
+                'מסירות',
+                snap.hasData ? '${snap.data!.length}' : '...',
+              ),
+            ),
+            const Divider(height: 16),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.postsStream,
+              builder: (_, postsSnap) {
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: fs.eventsStream,
+                  builder: (_, eventsSnap) {
+                    return StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: fs.marketplaceStream,
+                      builder: (_, marketSnap) {
+                        int pending = 0;
+                        if (postsSnap.hasData) {
+                          pending += postsSnap.data!.where((p) => p['status'] == 'pending').length;
+                        }
+                        if (eventsSnap.hasData) {
+                          pending += eventsSnap.data!.where((e) => e['status'] == 'pending').length;
+                        }
+                        if (marketSnap.hasData) {
+                          pending += marketSnap.data!.where((m) => m['status'] == 'pending').length;
+                        }
+                        final hasData = postsSnap.hasData || eventsSnap.hasData || marketSnap.hasData;
+                        return _buildStatRow(
+                          'ממתין לאישור',
+                          hasData ? '$pending' : '...',
+                          valueColor: pending > 0 ? Colors.orange : null,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
+  Widget _buildStatRow(String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -112,7 +172,7 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
             value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: valueColor ?? AppColors.primary,
                 ),
           ),
         ],
@@ -121,6 +181,7 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
   }
 
   Widget _buildContentModerationCard() {
+    final fs = context.read<FirestoreService>();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -138,9 +199,55 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildModerationItem('תוכן מדווח', '12', Colors.red),
-            _buildModerationItem('ממתין לאישור', '5', Colors.orange),
-            _buildModerationItem('נחסם לאחרונה', '3', Colors.grey),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.reportsStream,
+              builder: (_, snap) {
+                final pending = snap.hasData
+                    ? snap.data!.where((r) => r['status'] == 'pending').length
+                    : 0;
+                return _buildModerationItem(
+                  'תוכן מדווח',
+                  snap.hasData ? '$pending' : '...',
+                  Colors.red,
+                );
+              },
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.postsStream,
+              builder: (_, postsSnap) {
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: fs.eventsStream,
+                  builder: (_, eventsSnap) {
+                    int pending = 0;
+                    if (postsSnap.hasData) {
+                      pending += postsSnap.data!.where((p) => p['status'] == 'pending').length;
+                    }
+                    if (eventsSnap.hasData) {
+                      pending += eventsSnap.data!.where((e) => e['status'] == 'pending').length;
+                    }
+                    final hasData = postsSnap.hasData || eventsSnap.hasData;
+                    return _buildModerationItem(
+                      'ממתין לאישור',
+                      hasData ? '$pending' : '...',
+                      Colors.orange,
+                    );
+                  },
+                );
+              },
+            ),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: fs.postsStream,
+              builder: (_, snap) {
+                final rejected = snap.hasData
+                    ? snap.data!.where((p) => p['status'] == 'rejected').length
+                    : 0;
+                return _buildModerationItem(
+                  'נדחה לאחרונה',
+                  snap.hasData ? '$rejected' : '...',
+                  Colors.grey,
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -151,20 +258,34 @@ class _AdminContentManagerTabState extends State<AdminContentManagerTab> {
     return ListTile(
       leading: Icon(Icons.circle, color: color, size: 12),
       title: Text(label),
-      trailing: Chip(
-        label: Text(count),
-        backgroundColor: color.withValues(alpha: 0.1),
-        labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Chip(
+            label: Text(count),
+            backgroundColor: color.withValues(alpha: 0.1),
+            labelStyle: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+          if (widget.onNavigateToTab != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+            ),
+        ],
       ),
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('עברי לטאב "אישורים" לביקורת תוכן', style: TextStyle(fontFamily: 'Heebo')),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        if (widget.onNavigateToTab != null) {
+          widget.onNavigateToTab!('approvals');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('עברי לטאב "אישורים" לביקורת תוכן', style: TextStyle(fontFamily: 'Heebo')),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
       },
     );
   }

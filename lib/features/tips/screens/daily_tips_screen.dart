@@ -69,12 +69,16 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
     super.dispose();
   }
 
-  /// Filter tips list by active status, category, and search query
+  /// Filter tips list by active status, approval status, category, and search query
   List<Map<String, dynamic>> _filterTips(List<Map<String, dynamic>> allTips) {
     return allTips.where((tip) {
-      // Only show active tips (or if isActive field doesn't exist)
-      final isActive = tip['isActive'];
+      // Only show active tips (check both 'active' and legacy 'isActive' fields)
+      final isActive = tip['active'] ?? tip['isActive'];
       if (isActive == false) return false;
+
+      // Only show approved tips (default to 'approved' for backward compat with existing tips)
+      final status = (tip['status'] ?? 'approved').toString();
+      if (status != 'approved') return false;
 
       // Category filter
       if (_selectedCategory != 'הכל') {
@@ -424,7 +428,8 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
     final content = (tip['content'] ?? '').toString();
     final category = (tip['category'] ?? '').toString();
     final author = (tip['author'] ?? '').toString();
-    final fileUrl = (tip['fileUrl'] ?? '').toString();
+    final fileUrl = (tip['attachmentUrl'] ?? tip['fileUrl'] ?? '').toString();
+    final fileName = (tip['attachmentName'] ?? '').toString();
     final createdAt = tip['createdAt'];
     final catColor = _colorForCategory(category);
     final catIcon = _getCategoryIcon(category);
@@ -597,20 +602,22 @@ class _DailyTipsScreenState extends State<DailyTipsScreen> {
                             color: AppColors.info, size: 18),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'קובץ מצורף',
-                              style: TextStyle(
+                              fileName.isNotEmpty ? fileName : 'קובץ מצורף',
+                              style: const TextStyle(
                                 fontFamily: 'Heebo',
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 color: AppColors.info,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
+                            const Text(
                               'לחצי לצפייה או הורדה',
                               style: TextStyle(
                                 fontFamily: 'Heebo',

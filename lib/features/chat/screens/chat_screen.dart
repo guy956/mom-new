@@ -313,17 +313,45 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Widget _buildGroupsTab() {
-    final filtered = _filterList(_groups);
-    if (filtered.isEmpty && _searchQuery.isNotEmpty) {
-      return _buildNoResults();
-    }
-    if (_groups.isEmpty) {
-      return _buildEmptyState(isGroups: true);
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: fs.chatGroupsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final groups = (snapshot.data ?? [])
+            .where((g) => g['status'] == 'approved')
+            .map((g) => {
+                  'id': g['id'] ?? '',
+                  'name': g['name'] ?? 'קבוצה',
+                  'avatar': null,
+                  'emoji': g['emoji'] ?? '👥',
+                  'lastMessage': g['description'] ?? '',
+                  'time': '',
+                  'unread': 0,
+                  'members': g['membersCount'] ?? 0,
+                  'isGroup': true,
+                })
+            .toList();
+        final filtered = _searchQuery.isEmpty
+            ? groups
+            : groups.where((g) {
+                final name = (g['name'] as String).toLowerCase();
+                return name.contains(_searchQuery.toLowerCase());
+              }).toList();
+        if (filtered.isEmpty && _searchQuery.isNotEmpty) {
+          return _buildNoResults();
+        }
+        if (groups.isEmpty) {
+          return _buildEmptyState(isGroups: true);
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: filtered.length,
+          itemBuilder: (context, index) => _buildChatTile(filtered[index]),
+        );
+      },
     );
   }
 

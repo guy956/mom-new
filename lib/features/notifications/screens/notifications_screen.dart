@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 import 'package:mom_connect/core/constants/app_strings.dart';
 import 'package:mom_connect/models/notification_model.dart';
+import 'package:mom_connect/services/firestore_service.dart';
+import 'package:mom_connect/services/app_state.dart';
 import 'package:mom_connect/features/chat/screens/chat_screen.dart';
 import 'package:mom_connect/features/events/screens/events_screen.dart';
 import 'package:mom_connect/features/tracking/screens/tracking_screen.dart';
@@ -15,7 +18,6 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  late List<NotificationModel> _notifications;
   String _selectedFilter = 'all';
 
   final List<Map<String, dynamic>> _filters = [
@@ -26,15 +28,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     {'id': 'tracking', 'name': 'מעקב'},
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _notifications = NotificationModel.demoList();
+  String get _currentUserId {
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.currentUser?.id ?? '';
   }
 
-  List<NotificationModel> get _filteredNotifications {
-    if (_selectedFilter == 'all') return _notifications;
-    return _notifications.where((n) {
+  List<NotificationModel> _applyFilter(List<NotificationModel> notifications) {
+    if (_selectedFilter == 'all') return notifications;
+    return notifications.where((n) {
       switch (_selectedFilter) {
         case 'social':
           return [
@@ -67,103 +68,126 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }).toList();
   }
 
-  int get _unreadCount => _notifications.where((n) => !n.isRead).length;
-
   @override
   Widget build(BuildContext context) {
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final userId = _currentUserId;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildFilterTabs(),
-          Expanded(
-            child: _filteredNotifications.isEmpty
-                ? _buildEmptyState()
-                : _buildNotificationsList(),
-          ),
-        ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: userId.isNotEmpty
+            ? fs.userNotificationsStream(userId)
+            : const Stream.empty(),
+        builder: (context, snapshot) {
+          final allNotifications = (snapshot.data ?? [])
+              .map((data) => NotificationModel.fromJson(data))
+              .toList();
+          final filteredNotifications = _applyFilter(allNotifications);
+          final unreadCount = allNotifications.where((n) => !n.isRead).length;
+
+          return Column(
+            children: [
+              // Custom AppBar area (using SafeArea + Container instead of AppBar
+              // so we can rebuild it inside StreamBuilder)
+              _buildAppBarContent(unreadCount, userId),
+              _buildFilterTabs(allNotifications, filteredNotifications),
+              Expanded(
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredNotifications.isEmpty
+                        ? _buildEmptyState()
+                        : _buildNotificationsList(filteredNotifications, userId),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_rounded),
-        color: AppColors.textPrimary,
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: Row(
-        children: [
-          const Text(
-            AppStrings.notifications,
-            style: TextStyle(
-              fontFamily: 'Heebo',
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          if (_unreadCount > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                borderRadius: BorderRadius.circular(12),
+  Widget _buildAppBarContent(int unreadCount, String userId) {
+    return Container(
+      color: Colors.white,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_rounded),
+                color: AppColors.textPrimary,
+                onPressed: () => Navigator.pop(context),
               ),
-              child: Text(
-                _unreadCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
+              const Text(
+                AppStrings.notifications,
+                style: TextStyle(
+                  fontFamily: 'Heebo',
                   fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: AppColors.textPrimary,
                 ),
               ),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        if (_unreadCount > 0)
-          TextButton(
-            onPressed: _markAllAsRead,
-            child: const Text(
-              'סמני הכל כנקרא',
-              style: TextStyle(
-                fontFamily: 'Heebo',
-                fontSize: 12,
+              if (unreadCount > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              if (unreadCount > 0)
+                TextButton(
+                  onPressed: () => _markAllAsRead(userId),
+                  child: const Text(
+                    'סמני הכל כנקרא',
+                    style: TextStyle(
+                      fontFamily: 'Heebo',
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'settings', child: Text('הגדרות התראות')),
+                  const PopupMenuItem(value: 'clear', child: Text('נקה הכל')),
+                ],
+                onSelected: (value) {
+                  if (value == 'clear') {
+                    _showClearConfirmation(userId);
+                  } else if (value == 'settings') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('הגדרות התראות', style: TextStyle(fontFamily: 'Heebo')),
+                        backgroundColor: AppColors.info,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
               ),
-            ),
+            ],
           ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'settings', child: Text('הגדרות התראות')),
-            const PopupMenuItem(value: 'clear', child: Text('נקה הכל')),
-          ],
-          onSelected: (value) {
-            if (value == 'clear') {
-              _showClearConfirmation();
-            } else if (value == 'settings') {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('הגדרות התראות', style: TextStyle(fontFamily: 'Heebo')),
-                  backgroundColor: AppColors.info,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          },
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildFilterTabs() {
+  Widget _buildFilterTabs(List<NotificationModel> allNotifications, List<NotificationModel> filteredNotifications) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -173,10 +197,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: Row(
           children: _filters.map((filter) {
             final isSelected = _selectedFilter == filter['id'];
-            final filterNotifs = filter['id'] == 'all'
-                ? _notifications
-                : _filteredNotifications;
-            final unread = filterNotifs.where((n) => !n.isRead).length;
+            final unread = allNotifications.where((n) => !n.isRead).length;
 
             return GestureDetector(
               onTap: () {
@@ -272,22 +293,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationsList() {
+  Widget _buildNotificationsList(List<NotificationModel> filteredNotifications, String userId) {
     // Group notifications by date
     final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
 
-    final todayNotifs = _filteredNotifications.where((n) =>
+    final todayNotifs = filteredNotifications.where((n) =>
         n.createdAt.day == today.day &&
         n.createdAt.month == today.month &&
         n.createdAt.year == today.year).toList();
 
-    final yesterdayNotifs = _filteredNotifications.where((n) =>
+    final yesterdayNotifs = filteredNotifications.where((n) =>
         n.createdAt.day == yesterday.day &&
         n.createdAt.month == yesterday.month &&
         n.createdAt.year == yesterday.year).toList();
 
-    final olderNotifs = _filteredNotifications.where((n) =>
+    final olderNotifs = filteredNotifications.where((n) =>
         !todayNotifs.contains(n) && !yesterdayNotifs.contains(n)).toList();
 
     return ListView(
@@ -337,13 +358,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _handleNotificationTap(NotificationModel notification) {
-    // Mark as read
-    setState(() {
-      final index = _notifications.indexOf(notification);
-      if (index != -1) {
-        _notifications[index] = notification.copyWith(isRead: true);
-      }
-    });
+    // Mark as read in Firestore
+    if (!notification.isRead && notification.id.isNotEmpty) {
+      final fs = Provider.of<FirestoreService>(context, listen: false);
+      fs.markNotificationRead(notification.id);
+    }
 
     // Navigate based on notification type
     switch (notification.type) {
@@ -376,16 +395,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _removeNotification(NotificationModel notification) {
     HapticFeedback.mediumImpact();
-    setState(() {
-      _notifications.remove(notification);
-    });
+    if (notification.id.isNotEmpty) {
+      final fs = Provider.of<FirestoreService>(context, listen: false);
+      fs.deleteNotification(notification.id);
+    }
   }
 
-  void _markAllAsRead() {
+  void _markAllAsRead(String userId) {
     HapticFeedback.lightImpact();
-    setState(() {
-      _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
-    });
+    if (userId.isNotEmpty) {
+      final fs = Provider.of<FirestoreService>(context, listen: false);
+      fs.markAllNotificationsRead(userId);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('כל ההתראות סומנו כנקראו'),
@@ -394,7 +415,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  void _showClearConfirmation() {
+  void _showClearConfirmation(String userId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -408,7 +429,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              setState(() => _notifications.clear());
+              if (userId.isNotEmpty) {
+                final fs = Provider.of<FirestoreService>(this.context, listen: false);
+                fs.deleteAllNotifications(userId);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
