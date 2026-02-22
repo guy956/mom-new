@@ -979,9 +979,10 @@ class AuthService with RateLimitMixin {
     try {
       await FirebaseFirestore.instance.collection('activity_log').add({
         'email': email,
+        'userId': fb_auth.FirebaseAuth.instance.currentUser?.uid ?? '',
         'activityType': activityType,
         'details': details,
-        'timestamp': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
         'platform': kIsWeb ? 'web' : 'mobile',
       });
     } catch (e) {

@@ -582,6 +582,8 @@ class EmailService {
       DateTime dateTime;
       if (date is DateTime) {
         dateTime = date;
+      } else if (date is Timestamp) {
+        dateTime = date.toDate();
       } else if (date is String) {
         dateTime = DateTime.parse(date);
       } else {

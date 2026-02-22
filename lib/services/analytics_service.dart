@@ -281,14 +281,14 @@ class AnalyticsService extends ChangeNotifier {
       newUsersThisWeek: data['newUsersThisWeek'] ?? 0,
       newUsersThisMonth: data['newUsersThisMonth'] ?? 0,
       userGrowthRate: (data['userGrowthRate'] ?? 0.0).toDouble(),
-      userGrowthByDay: Map<String, int>.from(data['userGrowthByDay'] ?? {}),
-      userGrowthByWeek: Map<String, int>.from(data['userGrowthByWeek'] ?? {}),
-      userGrowthByMonth: Map<String, int>.from(data['userGrowthByMonth'] ?? {}),
+      userGrowthByDay: (data['userGrowthByDay'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
+      userGrowthByWeek: (data['userGrowthByWeek'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
+      userGrowthByMonth: (data['userGrowthByMonth'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
       activeUsersNow: _activeUsersNow,
       avgSessionDuration: (data['avgSessionDuration'] ?? 0.0).toDouble(),
       totalSessions: data['totalSessions'] ?? 0,
-      featureUsage: Map<String, int>.from(data['featureUsage'] ?? {}),
-      contentEngagement: Map<String, int>.from(data['contentEngagement'] ?? {}),
+      featureUsage: (data['featureUsage'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
+      contentEngagement: (data['contentEngagement'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as num).toInt())),
       engagementRate: (data['engagementRate'] ?? 0.0).toDouble(),
       revenueData: Map<String, double>.from(
         (data['revenueData'] ?? {}).map((k, v) => MapEntry(k, (v as num).toDouble()))
@@ -447,7 +447,7 @@ class AnalyticsService extends ChangeNotifier {
         final data = doc.data();
         for (final entry in data.entries) {
           if (entry.key != 'date' && entry.key != 'updatedAt') {
-            result[entry.key] = (result[entry.key] ?? 0) + (entry.value as int);
+            result[entry.key] = (result[entry.key] ?? 0) + (entry.value as num).toInt();
           }
         }
       }
@@ -538,10 +538,10 @@ class AnalyticsService extends ChangeNotifier {
         final amount = (data['amount'] ?? 0.0).toDouble();
         final type = data['type'] ?? 'other';
         
-        result['total'] = (result['total'] ?? 0.0)! + amount;
-        
+        result['total'] = (result['total'] ?? 0.0) + amount;
+
         if (result.containsKey(type)) {
-          result[type] = (result[type] ?? 0.0)! + amount;
+          result[type] = (result[type] ?? 0.0) + amount;
         }
       }
     } catch (e) {
