@@ -41,8 +41,7 @@ class AppRouter {
   static const String welcome = '/';
   static const String login = '/login';
   static const String register = '/register';
-  static const String forgotPassword = '/forgot-password';
-  
+
   // Main routes
   static const String home = '/home';
   static const String feed = '/feed';
@@ -52,11 +51,8 @@ class AppRouter {
   static const String aiChat = '/ai-chat';
   static const String profile = '/profile';
   static const String marketplace = '/marketplace';
-  static const String groups = '/groups';
-  static const String search = '/search';
   static const String notifications = '/notifications';
-  static const String settings = '/settings';
-  
+
   // Feature routes
   static const String experts = '/experts';
   static const String tips = '/tips';
@@ -71,10 +67,6 @@ class AppRouter {
 
   // Admin routes
   static const String admin = '/admin';
-  static const String adminUsers = '/admin/users';
-  static const String adminConfig = '/admin/config';
-  static const String adminContent = '/admin/content';
-  static const String adminAudit = '/admin/audit';
 
   // ════════════════════════════════════════════════════════════════
   //  ROUTE GENERATION
