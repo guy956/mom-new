@@ -493,7 +493,7 @@ class WhatsAppIntegrationScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-                'לא הצלחנו לפתוח את WhatsApp ישירות.\nהקישור הועתק - הדביקי בדפדפן:',
+                'לא הצלחנו לפתוח את WhatsApp ישירות.\nהעתיקי את הקישור והדביקי בדפדפן:',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontFamily: 'Heebo')),
             const SizedBox(height: 12),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
 
 /// AI Chat - MomBot - מופעל על ידי Google Gemini
@@ -21,7 +22,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   late AnimationController _pulseController;
 
   // Gemini API Configuration
-  static const String _geminiApiKey = 'AIzaSyDENOBbuoNc2XeyA7XRxVFQT51_TJrgD9s';
+  String? _geminiApiKey;
   static const String _geminiUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
@@ -83,6 +84,24 @@ class _AIChatScreenState extends State<AIChatScreen>
       isUser: false,
       timestamp: DateTime.now(),
     ));
+
+    _loadApiKey();
+  }
+
+  Future<void> _loadApiKey() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('admin_config')
+          .doc('api_keys')
+          .get();
+      if (doc.exists) {
+        setState(() {
+          _geminiApiKey = doc.data()?['geminiApiKey']?.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('[MomBot] Error loading API key: $e');
+    }
   }
 
   @override
@@ -721,28 +740,26 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   Future<String> _callGeminiApi(String userMessage) async {
+    if (_geminiApiKey == null || _geminiApiKey!.isEmpty) {
+      return 'מצטערת, השירות אינו זמין כרגע. נסי שוב מאוחר יותר.';
+    }
     final url = Uri.parse('$_geminiUrl?key=$_geminiApiKey');
 
     // Build conversation with system instruction
     final List<Map<String, dynamic>> contents = [];
 
-    // Add system instruction as first user/model pair
-    if (_conversationHistory.length <= 2) {
-      contents.add({
-        'role': 'user',
-        'parts': [
-          {'text': '$_systemPrompt\n\nשאלת המשתמשת: $userMessage'}
-        ]
-      });
-    } else {
-      // Use existing conversation history (max last 10 messages)
-      final recentHistory = _conversationHistory.length > 10
-          ? _conversationHistory.sublist(_conversationHistory.length - 10)
-          : _conversationHistory;
-      contents.addAll(recentHistory);
-    }
+    // Use existing conversation history (max last 10 messages)
+    final recentHistory = _conversationHistory.length > 10
+        ? _conversationHistory.sublist(_conversationHistory.length - 10)
+        : List<Map<String, dynamic>>.from(_conversationHistory);
+    contents.addAll(recentHistory);
 
     final body = jsonEncode({
+      'systemInstruction': {
+        'parts': [
+          {'text': _systemPrompt}
+        ]
+      },
       'contents': contents,
       'generationConfig': {
         'temperature': 0.8,
@@ -753,19 +770,19 @@ class _AIChatScreenState extends State<AIChatScreen>
       'safetySettings': [
         {
           'category': 'HARM_CATEGORY_HARASSMENT',
-          'threshold': 'BLOCK_NONE'
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
         },
         {
           'category': 'HARM_CATEGORY_HATE_SPEECH',
-          'threshold': 'BLOCK_NONE'
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
         },
         {
           'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          'threshold': 'BLOCK_NONE'
+          'threshold': 'BLOCK_LOW_AND_ABOVE'
         },
         {
           'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          'threshold': 'BLOCK_NONE'
+          'threshold': 'BLOCK_MEDIUM_AND_ABOVE'
         },
       ],
     });
