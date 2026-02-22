@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mom_connect/core/constants/app_colors.dart';
@@ -982,9 +983,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     }
   }
 
-  void _handleLogout(BuildContext context) {
+  void _handleLogout(BuildContext parentContext) {
     showDialog(
-      context: context,
+      context: parentContext,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('התנתקות', style: TextStyle(fontFamily: 'Heebo')),
@@ -995,9 +996,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
             onPressed: () async {
               Navigator.pop(ctx);
               await AuthService.instance.logout();
-              if (!ctx.mounted) return;
-              ctx.read<AppState>().logout();
-              Navigator.pushAndRemoveUntil(ctx, MaterialPageRoute(builder: (_) => const WelcomeScreen()), (r) => false);
+              if (!parentContext.mounted) return;
+              parentContext.read<AppState>().logout();
+              Navigator.pushAndRemoveUntil(parentContext, MaterialPageRoute(builder: (_) => const WelcomeScreen()), (r) => false);
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4A3A3)),
             child: const Text('התנתק', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
@@ -1009,15 +1010,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
 
   /// Combined stream of all pending content for approvals badge
   Stream<List<Map<String, dynamic>>> _combinedPendingStream(FirestoreService fs) {
-    return fs.eventsStream.asyncExpand((events) {
-      final pendingEvents = events.where((e) => (e['status'] ?? 'pending') == 'pending').toList();
-      return fs.postsStream.asyncExpand((posts) {
-        final pendingPosts = posts.where((p) => (p['status'] ?? 'pending') == 'pending').toList();
-        return fs.marketplaceStream.map((items) {
-          final pendingItems = items.where((i) => (i['status'] ?? 'pending') == 'pending').toList();
-          return [...pendingEvents, ...pendingPosts, ...pendingItems];
-        });
-      });
-    });
+    var latestEvents = <Map<String, dynamic>>[];
+    var latestPosts = <Map<String, dynamic>>[];
+    var latestItems = <Map<String, dynamic>>[];
+
+    final controller = StreamController<List<Map<String, dynamic>>>();
+
+    void emit() {
+      controller.add([
+        ...latestEvents.where((e) => (e['status'] ?? 'pending') == 'pending'),
+        ...latestPosts.where((p) => (p['status'] ?? 'pending') == 'pending'),
+        ...latestItems.where((i) => (i['status'] ?? 'pending') == 'pending'),
+      ]);
+    }
+
+    final sub1 = fs.eventsStream.listen((e) { latestEvents = e; emit(); });
+    final sub2 = fs.postsStream.listen((p) { latestPosts = p; emit(); });
+    final sub3 = fs.marketplaceStream.listen((i) { latestItems = i; emit(); });
+
+    controller.onCancel = () {
+      sub1.cancel();
+      sub2.cancel();
+      sub3.cancel();
+      controller.close();
+    };
+
+    return controller.stream;
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -577,46 +578,58 @@ class _AdminApprovalsTabState extends State<AdminApprovalsTab> with SingleTicker
   }
 
   Stream<Map<String, List<Map<String, dynamic>>>> _getAllPendingContent(FirestoreService fs) {
-    return fs.eventsStream.map((events) {
-      final pending = events.where((e) => (e['status'] ?? 'pending') == 'pending').toList();
-      return {'events': pending};
-    }).asyncExpand((eventData) {
-      return fs.postsStream.map((posts) {
-        final pending = posts.where((p) => (p['status'] ?? 'pending') == 'pending').toList();
-        return {...eventData, 'posts': pending};
+    var latestEvents = <Map<String, dynamic>>[];
+    var latestPosts = <Map<String, dynamic>>[];
+    var latestItems = <Map<String, dynamic>>[];
+
+    final controller = StreamController<Map<String, List<Map<String, dynamic>>>>();
+
+    void emit() {
+      controller.add({
+        'events': latestEvents.where((e) => (e['status'] ?? 'pending') == 'pending').toList(),
+        'posts': latestPosts.where((p) => (p['status'] ?? 'pending') == 'pending').toList(),
+        'marketplace': latestItems.where((i) => (i['status'] ?? 'pending') == 'pending').toList(),
       });
-    }).asyncExpand((combined) {
-      return fs.marketplaceStream.map((items) {
-        final pending = items.where((i) => (i['status'] ?? 'pending') == 'pending').toList();
-        return {...combined, 'marketplace': pending};
-      });
-    });
+    }
+
+    final sub1 = fs.eventsStream.listen((e) { latestEvents = e; emit(); });
+    final sub2 = fs.postsStream.listen((p) { latestPosts = p; emit(); });
+    final sub3 = fs.marketplaceStream.listen((i) { latestItems = i; emit(); });
+
+    controller.onCancel = () { sub1.cancel(); sub2.cancel(); sub3.cancel(); controller.close(); };
+    return controller.stream;
   }
 
   Stream<Map<String, List<Map<String, dynamic>>>> _getAllProcessedContent(FirestoreService fs) {
-    return fs.eventsStream.map((events) {
-      final processed = events.where((e) {
-        final status = (e['status'] ?? 'pending').toString();
-        return status == 'approved' || status == 'rejected';
-      }).toList();
-      return {'events': processed};
-    }).asyncExpand((eventData) {
-      return fs.postsStream.map((posts) {
-        final processed = posts.where((p) {
-          final status = (p['status'] ?? 'pending').toString();
-          return status == 'approved' || status == 'rejected';
-        }).toList();
-        return {...eventData, 'posts': processed};
+    var latestEvents = <Map<String, dynamic>>[];
+    var latestPosts = <Map<String, dynamic>>[];
+    var latestItems = <Map<String, dynamic>>[];
+
+    final controller = StreamController<Map<String, List<Map<String, dynamic>>>>();
+
+    void emit() {
+      controller.add({
+        'events': latestEvents.where((e) {
+          final s = (e['status'] ?? 'pending').toString();
+          return s == 'approved' || s == 'rejected';
+        }).toList(),
+        'posts': latestPosts.where((p) {
+          final s = (p['status'] ?? 'pending').toString();
+          return s == 'approved' || s == 'rejected';
+        }).toList(),
+        'marketplace': latestItems.where((i) {
+          final s = (i['status'] ?? 'pending').toString();
+          return s == 'active' || s == 'rejected';
+        }).toList(),
       });
-    }).asyncExpand((combined) {
-      return fs.marketplaceStream.map((items) {
-        final processed = items.where((i) {
-          final status = (i['status'] ?? 'pending').toString();
-          return status == 'active' || status == 'rejected';
-        }).toList();
-        return {...combined, 'marketplace': processed};
-      });
-    });
+    }
+
+    final sub1 = fs.eventsStream.listen((e) { latestEvents = e; emit(); });
+    final sub2 = fs.postsStream.listen((p) { latestPosts = p; emit(); });
+    final sub3 = fs.marketplaceStream.listen((i) { latestItems = i; emit(); });
+
+    controller.onCancel = () { sub1.cancel(); sub2.cancel(); sub3.cancel(); controller.close(); };
+    return controller.stream;
   }
 
   List<Map<String, dynamic>> _combineAndFilterItems(Map<String, List<Map<String, dynamic>>> data) {
