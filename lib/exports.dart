@@ -38,7 +38,6 @@ export 'services/app_router.dart';
 export 'services/app_state.dart';
 export 'services/audit_log_service.dart';
 export 'services/auth_service.dart';
-// Note: BrandingConfig is exported from models/app_config_model.dart
 export 'services/dynamic_config_service.dart';
 export 'services/feature_flag_service.dart';
 export 'services/firestore_service.dart';
