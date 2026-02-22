@@ -13,5 +13,8 @@ Future<int> getFileLength(dynamic file) =>
 /// On web, image picker returns blob URLs that can be fetched
 Future<Uint8List> readFileBytes(String filePath) async {
   final response = await http.get(Uri.parse(filePath));
+  if (response.statusCode != 200) {
+    throw Exception('Failed to read file: HTTP ${response.statusCode}');
+  }
   return response.bodyBytes;
 }

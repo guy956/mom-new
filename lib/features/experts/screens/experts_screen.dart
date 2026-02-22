@@ -322,11 +322,19 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                 IconButton(
                   icon: const Icon(Icons.phone_outlined, color: AppColors.primary, size: 20),
                   onPressed: () async {
-                    final success = await launchUrl(Uri.parse('tel:$phone'));
-                    if (!success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('לא ניתן לחייג ל-$phone')),
-                      );
+                    try {
+                      final success = await launchUrl(Uri.parse('tel:$phone'));
+                      if (!success && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('לא ניתן לחייג ל-$phone')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('שגיאה בחיוג ל-$phone')),
+                        );
+                      }
                     }
                   },
                   tooltip: 'התקשר',
@@ -335,11 +343,19 @@ class _ExpertsScreenState extends State<ExpertsScreen> {
                 IconButton(
                   icon: const Icon(Icons.email_outlined, color: AppColors.primary, size: 20),
                   onPressed: () async {
-                    final success = await launchUrl(Uri.parse('mailto:$email'));
-                    if (!success && mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('לא ניתן לשלוח מייל ל-$email')),
-                      );
+                    try {
+                      final success = await launchUrl(Uri.parse('mailto:$email'));
+                      if (!success && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('לא ניתן לשלוח מייל ל-$email')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('שגיאה בשליחת מייל ל-$email')),
+                        );
+                      }
                     }
                   },
                   tooltip: 'שלח אימייל',

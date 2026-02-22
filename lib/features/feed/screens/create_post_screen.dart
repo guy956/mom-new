@@ -422,7 +422,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             icon: Icons.camera_alt_outlined,
             label: 'תמונה',
             onTap: () {
-              // Add image picker
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('העלאת תמונות תהיה זמינה בקרוב', style: TextStyle(fontFamily: 'Heebo')),
+                  backgroundColor: Color(0xFF5B9BD5),
+                ),
+              );
             },
           ),
           _buildOptionChip(

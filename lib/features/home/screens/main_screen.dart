@@ -1019,17 +1019,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _openContactEmail() async {
-    // Try to get contact email from app config, fallback to empty
-    final configSnap = await FirebaseFirestore.instance.collection('admin_config').doc('app_config').get();
-    final email = configSnap.data()?['contactEmail']?.toString() ?? '';
-    if (email.isNotEmpty) {
-      final uri = Uri(scheme: 'mailto', path: email, queryParameters: {'subject': 'פנייה מאפליקציית MOMIT'});
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        return;
+    try {
+      final configSnap = await FirebaseFirestore.instance.collection('admin_config').doc('app_config').get();
+      final email = configSnap.data()?['contactEmail']?.toString() ?? '';
+      if (email.isNotEmpty) {
+        final uri = Uri(scheme: 'mailto', path: email, queryParameters: {'subject': 'פנייה מאפליקציית MOMIT'});
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+          return;
+        }
       }
+      if (mounted) AppSnackbar.info(context, 'לא הוגדר אימייל קשר. ניתן להגדיר בלוח הבקרה.');
+    } catch (e) {
+      if (mounted) AppSnackbar.error(context, 'שגיאה בטעינת פרטי קשר');
     }
-    if (mounted) AppSnackbar.info(context, 'לא הוגדר אימייל קשר. ניתן להגדיר בלוח הבקרה.');
   }
 
   void _showReportDialog() {
@@ -1055,17 +1058,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             onPressed: () async {
               final text = reportController.text.trim();
               if (text.isEmpty) return;
-              final userId = context.read<AppState>().currentUser?.id ?? 'anonymous';
-              await FirebaseFirestore.instance.collection('reports').add({
-                'type': 'bug_report',
-                'content': text,
-                'reporterId': userId,
-                'status': 'pending',
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) AppSnackbar.success(context, 'תודה! הדיווח נשלח בהצלחה');
-              reportController.dispose();
+              try {
+                final userId = context.read<AppState>().currentUser?.id ?? 'anonymous';
+                await FirebaseFirestore.instance.collection('reports').add({
+                  'type': 'bug_report',
+                  'content': text,
+                  'reporterId': userId,
+                  'status': 'pending',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) AppSnackbar.success(context, 'תודה! הדיווח נשלח בהצלחה');
+              } catch (e) {
+                if (mounted) AppSnackbar.error(context, 'שגיאה בשליחת הדיווח, נסי שוב');
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: const Text('שלחי', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),

@@ -717,9 +717,11 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                                   photos.add(photoData);
                                 });
 
-                                setState(() {
-                                  album['count'] = (album['count'] as int) + 1;
-                                });
+                                if (mounted) {
+                                  setState(() {
+                                    album['count'] = (album['count'] as int) + 1;
+                                  });
+                                }
                                 _saveAlbums();
 
                                 if (mounted) {
@@ -859,10 +861,12 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                 setSheetState(() {
                   _albumPhotos[albumKey]?.removeAt(index);
                 });
-                setState(() {
-                  album['count'] = (album['count'] as int) - 1;
-                  if ((album['count'] as int) < 0) album['count'] = 0;
-                });
+                if (mounted) {
+                  setState(() {
+                    album['count'] = (album['count'] as int) - 1;
+                    if ((album['count'] as int) < 0) album['count'] = 0;
+                  });
+                }
                 _saveAlbums();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

@@ -313,15 +313,27 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             hint: 'לחצי לחיוג לשירותי חירום',
             child: GestureDetector(
               onTap: () async {
-                final success = await launchUrl(Uri.parse('tel:$number'));
-                if (!success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('לא ניתן לחייג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
-                      backgroundColor: AppColors.error,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                try {
+                  final success = await launchUrl(Uri.parse('tel:$number'));
+                  if (!success && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('לא ניתן לחייג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('שגיאה בחיוג ל-$number', style: const TextStyle(fontFamily: 'Heebo')),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               },
               child: Container(
