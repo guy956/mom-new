@@ -1285,15 +1285,24 @@ class FirestoreService extends ChangeNotifier {
 
   /// Delete a DM conversation and all its messages
   Future<void> deleteDirectMessage(String conversationId) async {
-    // Delete all messages in the subcollection
+    // Delete all messages in chunks of 499 (batch limit is 500)
     final msgs = await _db.collection('directMessages').doc(conversationId)
         .collection('messages').get();
-    final batch = _db.batch();
-    for (final doc in msgs.docs) {
-      batch.delete(doc.reference);
+    final docs = msgs.docs;
+    for (var i = 0; i < docs.length; i += 499) {
+      final batch = _db.batch();
+      final end = (i + 499 < docs.length) ? i + 499 : docs.length;
+      for (var j = i; j < end; j++) {
+        batch.delete(docs[j].reference);
+      }
+      if (end == docs.length) {
+        batch.delete(_db.collection('directMessages').doc(conversationId));
+      }
+      await batch.commit();
     }
-    batch.delete(_db.collection('directMessages').doc(conversationId));
-    await batch.commit();
+    if (docs.isEmpty) {
+      await _db.collection('directMessages').doc(conversationId).delete();
+    }
   }
 
   /// Stream of messages in a chat group
@@ -1419,12 +1428,21 @@ class FirestoreService extends ChangeNotifier {
     try {
       final msgs = await _db.collection('chatGroups').doc(groupId)
           .collection('messages').get();
-      final batch = _db.batch();
-      for (final doc in msgs.docs) {
-        batch.delete(doc.reference);
+      final docs = msgs.docs;
+      for (var i = 0; i < docs.length; i += 499) {
+        final batch = _db.batch();
+        final end = (i + 499 < docs.length) ? i + 499 : docs.length;
+        for (var j = i; j < end; j++) {
+          batch.delete(docs[j].reference);
+        }
+        if (end == docs.length) {
+          batch.delete(_db.collection('chatGroups').doc(groupId));
+        }
+        await batch.commit();
       }
-      batch.delete(_db.collection('chatGroups').doc(groupId));
-      await batch.commit();
+      if (docs.isEmpty) {
+        await _db.collection('chatGroups').doc(groupId).delete();
+      }
       debugPrint('[FirestoreService] Chat group and messages deleted: $groupId');
     } catch (e) {
       debugPrint('[FirestoreService] Error deleting chat group: $e');

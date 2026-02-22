@@ -221,6 +221,11 @@ class _ChatScreenState extends State<ChatScreen>
 
             final groups = (groupSnap.data ?? [])
                 .where((g) => g['status'] == 'approved')
+                .where((g) {
+                  final members = g['members'];
+                  if (members is List) return members.contains(userId);
+                  return true; // Show if no members list (legacy)
+                })
                 .map((g) => <String, dynamic>{
                       'id': g['id'] ?? '',
                       'name': g['name'] ?? 'קבוצה',
@@ -258,6 +263,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   Widget _buildGroupsTab() {
     final fs = Provider.of<FirestoreService>(context, listen: false);
+    final userId = _currentUserId;
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: fs.chatGroupsStream,
       builder: (context, snapshot) {
@@ -266,6 +272,11 @@ class _ChatScreenState extends State<ChatScreen>
         }
         final groups = (snapshot.data ?? [])
             .where((g) => g['status'] == 'approved')
+            .where((g) {
+              final members = g['members'];
+              if (members is List) return members.contains(userId);
+              return true;
+            })
             .map((g) => <String, dynamic>{
                   'id': g['id'] ?? '',
                   'name': g['name'] ?? 'קבוצה',
@@ -363,24 +374,28 @@ class _ChatScreenState extends State<ChatScreen>
       ),
       confirmDismiss: (_) async {
         return await context.showConfirmDialog(
-          title: 'מחיקת שיחה',
-          message: 'למחוק את השיחה עם ${chat['name']}?',
-          confirmText: 'מחק',
+          title: isGroup ? 'עזיבת קבוצה' : 'מחיקת שיחה',
+          message: isGroup
+              ? 'לעזוב את הקבוצה ${chat['name']}?'
+              : 'למחוק את השיחה עם ${chat['name']}?',
+          confirmText: isGroup ? 'עזוב' : 'מחק',
           cancelText: 'ביטול',
-          icon: Icons.delete_outline_rounded,
+          icon: isGroup ? Icons.exit_to_app_rounded : Icons.delete_outline_rounded,
           isDestructive: true,
         );
       },
       onDismissed: (_) {
         final fs = Provider.of<FirestoreService>(context, listen: false);
         if (isGroup) {
-          fs.deleteChatGroup(chat['id']);
+          // Leave group instead of deleting for everyone
+          fs.leaveChatGroup(chat['id'], _currentUserId);
         } else {
           fs.deleteDirectMessage(chat['id']);
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('השיחה עם ${chat['name']} נמחקה',
+            content: Text(
+                isGroup ? 'עזבת את הקבוצה ${chat['name']}' : 'השיחה עם ${chat['name']} נמחקה',
                 style: const TextStyle(fontFamily: 'Heebo')),
           ),
         );
@@ -1347,28 +1362,38 @@ class _ChatConversationSheetState extends State<_ChatConversationSheet> {
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
     HapticFeedback.lightImpact();
     final text = _messageController.text.trim();
     _messageController.clear();
 
     final fs = Provider.of<FirestoreService>(context, listen: false);
-    if (_isGroup) {
-      fs.sendGroupMessage(
-        groupId: _chatId,
-        senderId: widget.currentUserId,
-        senderName: widget.currentUserName,
-        text: text,
-      );
-    } else {
-      fs.sendDirectMessage(
-        conversationId: _chatId,
-        senderId: widget.currentUserId,
-        text: text,
-      );
+    try {
+      if (_isGroup) {
+        await fs.sendGroupMessage(
+          groupId: _chatId,
+          senderId: widget.currentUserId,
+          senderName: widget.currentUserName,
+          text: text,
+        );
+      } else {
+        await fs.sendDirectMessage(
+          conversationId: _chatId,
+          senderId: widget.currentUserId,
+          text: text,
+        );
+      }
+      _scrollToBottom();
+    } catch (e) {
+      // Restore the text so user doesn't lose their message
+      _messageController.text = text;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('שליחת ההודעה נכשלה. נסי שנית.', style: TextStyle(fontFamily: 'Heebo'))),
+        );
+      }
     }
-    _scrollToBottom();
   }
 
   String _formatMsgTime(dynamic ts) {
