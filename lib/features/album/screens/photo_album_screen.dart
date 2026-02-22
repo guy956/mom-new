@@ -576,37 +576,53 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                         itemCount: photos.length,
                         itemBuilder: (_, i) {
                           final photo = photos[i];
+                          final photoUrl = (photo['url'] ?? '').toString();
                           return GestureDetector(
+                            onTap: () => _showFullPhoto(photo, color),
                             onLongPress: () => _showPhotoOptions(photo, albumKey, i, setSheetState, album),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.1 + (i % 5) * 0.05),
+                                color: color.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Stack(
-                                children: [
-                                  Center(child: Icon(Icons.image_rounded, color: color.withValues(alpha: 0.4), size: 30)),
-                                  // Photo info overlay
-                                  Positioned(
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.5),
-                                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
-                                      ),
-                                      child: Text(
-                                        photo['uploadedBy'] ?? 'משתמשת',
-                                        style: const TextStyle(fontFamily: 'Heebo', fontSize: 9, color: Colors.white),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (photoUrl.isNotEmpty)
+                                      Image.network(
+                                        photoUrl,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (_, child, progress) {
+                                          if (progress == null) return child;
+                                          return Center(child: CircularProgressIndicator(strokeWidth: 2, color: color));
+                                        },
+                                        errorBuilder: (_, __, ___) => Center(child: Icon(Icons.broken_image_rounded, color: color.withValues(alpha: 0.4), size: 30)),
+                                      )
+                                    else
+                                      Center(child: Icon(Icons.image_rounded, color: color.withValues(alpha: 0.4), size: 30)),
+                                    // Photo info overlay
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.5),
+                                        ),
+                                        child: Text(
+                                          photo['uploadedBy'] ?? 'משתמשת',
+                                          style: const TextStyle(fontFamily: 'Heebo', fontSize: 9, color: Colors.white),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -694,6 +710,11 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                               }
                             } catch (e) {
                               debugPrint('Error picking image: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('שגיאה בהעלאת תמונה: $e', style: const TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                                );
+                              }
                             }
                           },
                           icon: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 20),
@@ -710,6 +731,48 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullPhoto(Map<String, dynamic> photo, Color color) {
+    final photoUrl = (photo['url'] ?? '').toString();
+    if (photoUrl.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(photoUrl, fit: BoxFit.contain,
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return Center(child: CircularProgressIndicator(color: color));
+                  },
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40, right: 16,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+            Positioned(
+              bottom: 20, left: 0, right: 0,
+              child: Center(
+                child: Text(
+                  photo['uploadedBy'] ?? '',
+                  style: const TextStyle(fontFamily: 'Heebo', color: Colors.white70, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -745,8 +808,30 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
             ListTile(
               leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: const Text('מחק תמונה', style: TextStyle(fontFamily: 'Heebo', color: AppColors.error)),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(ctx);
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (c) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('מחיקת תמונה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    content: const Text('למחוק את התמונה? לא ניתן לשחזר.', style: TextStyle(fontFamily: 'Heebo'), textAlign: TextAlign.center),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo'))),
+                      TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('מחק', style: TextStyle(fontFamily: 'Heebo', color: AppColors.error))),
+                    ],
+                  ),
+                );
+                if (confirm != true) return;
+                // Delete from Firebase Storage
+                final photoUrl = (photo['url'] ?? '').toString();
+                if (photoUrl.isNotEmpty) {
+                  try {
+                    await StorageService().deleteFileByUrl(photoUrl);
+                  } catch (e) {
+                    debugPrint('Error deleting photo from storage: $e');
+                  }
+                }
                 setSheetState(() {
                   _albumPhotos[albumKey]?.removeAt(index);
                 });
@@ -755,9 +840,11 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                   if ((album['count'] as int) < 0) album['count'] = 0;
                 });
                 _saveAlbums();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('התמונה נמחקה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('התמונה נמחקה', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
+                  );
+                }
               },
             ),
           ],
@@ -767,24 +854,10 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
   }
 
   void _exportAlbumToGallery(Map<String, dynamic> album) {
-    final albumKey = '${album['child']}_${album['title']}';
-    final photos = _albumPhotos[albumKey] ?? [];
-
-    if (photos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('האלבום ריק - אין תמונות לייצוא', style: TextStyle(fontFamily: 'Heebo')), backgroundColor: AppColors.error),
-      );
-      return;
-    }
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'ייצוא לגלריה יהיה זמין בקרוב (${photos.length} תמונות באלבום)',
-          style: const TextStyle(fontFamily: 'Heebo'),
-        ),
+      const SnackBar(
+        content: Text('ייצוא לגלריה יהיה זמין בגרסה הבאה', style: TextStyle(fontFamily: 'Heebo')),
         backgroundColor: AppColors.info,
-        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -887,7 +960,7 @@ class _PhotoAlbumScreenState extends State<PhotoAlbumScreen> with SingleTickerPr
                           'coverColor': AppColors.primary,
                           'coverColorValue': AppColors.primary.toARGB32(),
                           'emoji': '📷',
-                          'date': 'עכשיו',
+                          'date': '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
                           'createdBy': _currentUserName,
                         });
                       });
