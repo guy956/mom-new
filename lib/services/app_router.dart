@@ -79,7 +79,7 @@ class AppRouter {
         case chat:
           return _buildPageRoute(const ChatScreen(), settings);
         case aiChat:
-          return _buildPageRoute(const AiChatScreen(), settings);
+          return _buildPageRoute(const AIChatScreen(), settings);
         case admin:
           return _buildPageRoute(
             Builder(builder: (context) {

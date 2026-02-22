@@ -1,5 +1,6 @@
 // Sentinel value used to distinguish between "not provided" and "set to null"
-final _sentinel = Object();
+class _Sentinel { const _Sentinel(); }
+const _sentinel = _Sentinel();
 
 /// מודל משתמש מלא
 class UserModel {
