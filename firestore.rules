@@ -227,32 +227,32 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Chat messages - participants only
-    match /chats/{chatId} {
-      allow read: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && 
-        get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
-    }
-    
-    match /chats/{chatId}/messages/{messageId} {
-      allow read: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
-      allow create: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/chats/$(chatId)/participants/$(request.auth.uid));
-      allow update, delete: if isAuthenticated() && 
-        (resource.data.senderId == request.auth.uid || isAdmin());
-    }
-    
     // Tracking data - owner or admin only
     match /tracking/{userId}/{subcollection}/{doc} {
       allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
     }
     
-    // Notifications - owner only
-    match /notifications/{userId}/{notificationId} {
-      allow read, write: if isAuthenticated() && isOwner(userId);
+    // Notifications - authenticated create, owner read
+    // Flat collection: each doc has a 'userId' field
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Admin notifications - admin read/write, authenticated create
+    match /admin_notifications/{notificationId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // FCM tokens - owner write, admin read
+    match /fcm_tokens/{tokenId} {
+      allow read: if isAdmin();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

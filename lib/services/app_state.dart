@@ -8,6 +8,7 @@ import 'package:mom_connect/services/firestore_service.dart';
 import 'package:mom_connect/services/branding_config_service.dart';
 import 'package:mom_connect/core/constants/text_config.dart';
 import 'package:mom_connect/core/constants/color_config.dart';
+import 'package:mom_connect/services/push_notification_service.dart';
 
 /// Global app state with full user data persistence and Firestore real-time sync.
 ///
@@ -402,6 +403,10 @@ class AppState extends ChangeNotifier {
   void setUser(UserModel? user) {
     _currentUser = user;
     _persistUserData();
+    // Initialize push notifications when user is set
+    if (user != null && user.id.isNotEmpty) {
+      PushNotificationService().initialize(userId: user.id);
+    }
     _safeNotifyListeners();
   }
 
@@ -533,6 +538,8 @@ class AppState extends ChangeNotifier {
     _prefs?.remove(_userDataKey);
     _prefs?.setInt(_notifCountKey, 0);
     _prefs?.setInt(_msgCountKey, 0);
+    // Clean up push notification token
+    PushNotificationService().cleanup();
     // Also clear the auth session
     AuthService.instance.logout();
     _safeNotifyListeners();
@@ -560,6 +567,10 @@ class AppState extends ChangeNotifier {
     _currentUser = AuthService.instance.userModelFromData(data);
     _persistUserData();
     _addLoginHistoryEntry('login');
+    // Initialize push notifications for authenticated user
+    if (_currentUser != null && _currentUser!.id.isNotEmpty) {
+      PushNotificationService().initialize(userId: _currentUser!.id);
+    }
     _safeNotifyListeners();
   }
 

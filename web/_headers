@@ -45,8 +45,11 @@
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
 
-# Service worker - no cache (must revalidate)
+# Service workers - no cache (must revalidate)
 /flutter_service_worker.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/firebase-messaging-sw.js
   Cache-Control: public, max-age=0, must-revalidate
 
 /flutter_service_worker.js?v=*

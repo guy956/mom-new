@@ -41,6 +41,7 @@ export 'services/auth_service.dart';
 export 'services/dynamic_config_service.dart';
 export 'services/feature_flag_service.dart';
 export 'services/firestore_service.dart';
+export 'services/push_notification_service.dart';
 export 'services/rbac_service.dart';
 export 'services/secure_api_client.dart';
 export 'services/secure_cookie_manager.dart';
