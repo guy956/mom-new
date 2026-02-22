@@ -88,29 +88,6 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "screenshots/mobile-home.png",
-      "sizes": "1170x2532",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "דף הבית של MOMIT"
-    },
-    {
-      "src": "screenshots/mobile-feed.png",
-      "sizes": "1170x2532",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "הפיד החברתי"
-    },
-    {
-      "src": "screenshots/desktop-home.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "MOMIT במסך רחב"
-    }
-  ],
   "related_applications": [
     {
       "platform": "play",
@@ -119,7 +96,8 @@
     },
     {
       "platform": "itunes",
-      "url": "https://apps.apple.com/app/momit/"
+      "url": "https://apps.apple.com/app/momit/",
+      "id": "com.momconnect.social"
     }
   ],
   "protocol_handlers": [

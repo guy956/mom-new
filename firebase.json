@@ -52,7 +52,7 @@
             "key": "Permissions-Policy",
             "value": "camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), clipboard-read=(self), clipboard-write=(self), display-capture=(self), fullscreen=(self), picture-in-picture=(self), publickey-credentials-get=(self), publickey-credentials-create=(self), web-share=(self)"
           },
-{
+          {
             "key": "Cross-Origin-Opener-Policy",
             "value": "same-origin-allow-popups"
           },
