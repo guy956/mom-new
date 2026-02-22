@@ -50,19 +50,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late AnimationController _fabAnimController;
 
-  // Route mapping for quick access navigation
-  final Map<String, Widget Function()> _quickAccessRoutes = {
-    'aiChat': () => const AIChatScreen(),
-    'sos': () => const SOSScreen(),
-    'whatsapp': () => const WhatsAppIntegrationScreen(),
-    'marketplace': () => const MarketplaceScreen(),
-    'mood': () => const MoodTrackerScreen(),
-    'album': () => const PhotoAlbumScreen(),
-    'experts': () => const ExpertsScreen(),
-    'tips': () => const DailyTipsScreen(),
-    'gamification': () => const GamificationScreen(),
-  };
-
   /// Map of screen keys to their widget builders
   final Map<String, Widget Function()> _screenBuilders = {
     'feed': () => const FeedScreen(),
@@ -995,19 +982,72 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               _settingsTile(Icons.auto_awesome_rounded, 'שאלי את MomBot', onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const AIChatScreen())); }),
             _settingsTile(Icons.email_outlined, 'צרי קשר', onTap: () {
               Navigator.pop(context);
-              AppSnackbar.success(context, 'שלחנו לך מייל עם פרטי קשר!');
-            }),
-            _settingsTile(Icons.question_answer_outlined, 'שאלות נפוצות', onTap: () {
-              Navigator.pop(context);
-              AppSnackbar.info(context, 'דף שאלות נפוצות יהיה זמין בקרוב');
+              _openContactEmail();
             }),
             _settingsTile(Icons.flag_outlined, 'דווחי על בעיה', onTap: () {
               Navigator.pop(context);
-              AppSnackbar.success(context, 'תודה! הדיווח התקבל');
+              _showReportDialog();
             }),
             const SizedBox(height: 10),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _openContactEmail() async {
+    // Try to get contact email from app config, fallback to empty
+    final configSnap = await FirebaseFirestore.instance.collection('admin_config').doc('app_config').get();
+    final email = configSnap.data()?['contactEmail']?.toString() ?? '';
+    if (email.isNotEmpty) {
+      final uri = Uri(scheme: 'mailto', path: email, queryParameters: {'subject': 'פנייה מאפליקציית MOMIT'});
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        return;
+      }
+    }
+    if (mounted) AppSnackbar.info(context, 'לא הוגדר אימייל קשר. ניתן להגדיר בלוח הבקרה.');
+  }
+
+  void _showReportDialog() {
+    final reportController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('דיווח על בעיה', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        content: TextField(
+          controller: reportController,
+          textDirection: TextDirection.rtl,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: 'תארי את הבעיה...',
+            hintStyle: TextStyle(fontFamily: 'Heebo', color: AppColors.textHint),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ביטול', style: TextStyle(fontFamily: 'Heebo'))),
+          ElevatedButton(
+            onPressed: () async {
+              final text = reportController.text.trim();
+              if (text.isEmpty) return;
+              final userId = context.read<AppState>().currentUser?.id ?? 'anonymous';
+              await FirebaseFirestore.instance.collection('reports').add({
+                'type': 'bug_report',
+                'content': text,
+                'reporterId': userId,
+                'status': 'pending',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) AppSnackbar.success(context, 'תודה! הדיווח נשלח בהצלחה');
+              reportController.dispose();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('שלחי', style: TextStyle(fontFamily: 'Heebo', color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -1293,29 +1333,106 @@ class _SearchSheetState extends State<_SearchSheet> {
   }
 
   Widget _buildResults() {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: [
-        const Text('תוצאות חיפוש', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 16)),
-        const SizedBox(height: 12),
-        _buildResult('מיכל לוין', 'אמא לנועה (2)', Icons.person_rounded, AppColors.primary, onTap: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
-        }),
-        _buildResult('יוגה לאמהות', 'מחר ב-10:00', Icons.event_rounded, AppColors.accent, onTap: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen()));
-        }),
-        _buildResult('טיפים לשינה', '23 תגובות', Icons.article_rounded, AppColors.success, onTap: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyTipsScreen()));
-        }),
-        _buildResult('ד"ר רונית גולן', 'רופאת ילדים מאומתת', Icons.medical_services_rounded, AppColors.info, onTap: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpertsScreen()));
-        }),
-      ],
+    final fs = Provider.of<FirestoreService>(context, listen: false);
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return const SizedBox.shrink();
+
+    return StreamBuilder<List<List<Map<String, dynamic>>>>(
+      stream: _searchFirestore(fs, query),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
+        }
+        final results = snapshot.data ?? [];
+        final posts = results.isNotEmpty ? results[0] : <Map<String, dynamic>>[];
+        final events = results.length > 1 ? results[1] : <Map<String, dynamic>>[];
+        final experts = results.length > 2 ? results[2] : <Map<String, dynamic>>[];
+        final tips = results.length > 3 ? results[3] : <Map<String, dynamic>>[];
+
+        final allEmpty = posts.isEmpty && events.isEmpty && experts.isEmpty && tips.isEmpty;
+        if (allEmpty) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search_off_rounded, size: 48, color: AppColors.textHint),
+                const SizedBox(height: 12),
+                Text('לא נמצאו תוצאות עבור "$_searchQuery"', style: const TextStyle(fontFamily: 'Heebo', color: AppColors.textSecondary)),
+              ],
+            ),
+          ));
+        }
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            const Text('תוצאות חיפוש', style: TextStyle(fontFamily: 'Heebo', fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 12),
+            ...posts.take(3).map((p) => _buildResult(
+              p['title'] ?? p['content'] ?? '',
+              'פוסט',
+              Icons.article_rounded, AppColors.success,
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedScreen())); },
+            )),
+            ...events.take(3).map((e) => _buildResult(
+              e['title'] ?? '',
+              e['location'] ?? 'אירוע',
+              Icons.event_rounded, AppColors.accent,
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsScreen())); },
+            )),
+            ...experts.take(3).map((e) => _buildResult(
+              e['name'] ?? e['fullName'] ?? '',
+              e['specialty'] ?? 'מומחה/ת',
+              Icons.medical_services_rounded, AppColors.info,
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpertsScreen())); },
+            )),
+            ...tips.take(3).map((t) => _buildResult(
+              t['title'] ?? '',
+              t['category'] ?? 'טיפ',
+              Icons.lightbulb_rounded, AppColors.primary,
+              onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const DailyTipsScreen())); },
+            )),
+          ],
+        );
+      },
     );
+  }
+
+  Stream<List<List<Map<String, dynamic>>>> _searchFirestore(FirestoreService fs, String query) {
+    // Search across multiple collections using streams
+    return fs.postsStream.map((posts) {
+      final filteredPosts = posts.where((p) {
+        final title = (p['title'] ?? '').toString().toLowerCase();
+        final content = (p['content'] ?? '').toString().toLowerCase();
+        return title.contains(query) || content.contains(query);
+      }).toList();
+      return filteredPosts;
+    }).asyncMap((posts) async {
+      // Also search events, experts, tips
+      final eventsSnap = await FirebaseFirestore.instance.collection('events').get();
+      final expertsSnap = await FirebaseFirestore.instance.collection('experts').get();
+      final tipsSnap = await FirebaseFirestore.instance.collection('tips').get();
+
+      final events = eventsSnap.docs.where((d) {
+        final title = (d.data()['title'] ?? '').toString().toLowerCase();
+        return title.contains(query);
+      }).map((d) => {'id': d.id, ...d.data()}).toList();
+
+      final experts = expertsSnap.docs.where((d) {
+        final name = (d.data()['name'] ?? d.data()['fullName'] ?? '').toString().toLowerCase();
+        final specialty = (d.data()['specialty'] ?? '').toString().toLowerCase();
+        return name.contains(query) || specialty.contains(query);
+      }).map((d) => {'id': d.id, ...d.data()}).toList();
+
+      final tips = tipsSnap.docs.where((d) {
+        final title = (d.data()['title'] ?? '').toString().toLowerCase();
+        final content = (d.data()['content'] ?? '').toString().toLowerCase();
+        return title.contains(query) || content.contains(query);
+      }).map((d) => {'id': d.id, ...d.data()}).toList();
+
+      return [posts, events, experts, tips];
+    });
   }
 
   Widget _buildResult(String title, String subtitle, IconData icon, Color color, {VoidCallback? onTap}) {
