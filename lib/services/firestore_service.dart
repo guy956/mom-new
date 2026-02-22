@@ -1249,33 +1249,39 @@ class FirestoreService extends ChangeNotifier {
     return docRef.id;
   }
 
-  /// Stream of messages in a DM conversation
+  /// Stream of messages in a DM conversation (latest 200 messages)
   Stream<List<Map<String, dynamic>>> dmMessagesStream(String conversationId) =>
       _db.collection('directMessages').doc(conversationId)
           .collection('messages')
           .orderBy('createdAt', descending: false)
+          .limitToLast(200)
           .snapshots()
           .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
-  /// Send a message in a DM conversation
+  /// Send a message in a DM conversation (atomic batch write)
   Future<void> sendDirectMessage({
     required String conversationId,
     required String senderId,
     required String text,
   }) async {
     final now = FieldValue.serverTimestamp();
-    await _db.collection('directMessages').doc(conversationId)
-        .collection('messages').add({
+    final batch = _db.batch();
+    // Create message document
+    final msgRef = _db.collection('directMessages').doc(conversationId)
+        .collection('messages').doc();
+    batch.set(msgRef, {
       'senderId': senderId,
       'text': text,
       'createdAt': now,
     });
-    // Update conversation's last message
-    await _db.collection('directMessages').doc(conversationId).update({
+    // Update conversation metadata in same batch
+    final convRef = _db.collection('directMessages').doc(conversationId);
+    batch.update(convRef, {
       'lastMessage': text,
       'lastMessageAt': now,
       'lastMessageBy': senderId,
     });
+    await batch.commit();
   }
 
   /// Delete a DM conversation and all its messages
@@ -1300,15 +1306,16 @@ class FirestoreService extends ChangeNotifier {
     }
   }
 
-  /// Stream of messages in a chat group
+  /// Stream of messages in a chat group (latest 200 messages)
   Stream<List<Map<String, dynamic>>> groupMessagesStream(String groupId) =>
       _db.collection('chatGroups').doc(groupId)
           .collection('messages')
           .orderBy('createdAt', descending: false)
+          .limitToLast(200)
           .snapshots()
           .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
-  /// Send a message in a chat group
+  /// Send a message in a chat group (atomic batch write)
   Future<void> sendGroupMessage({
     required String groupId,
     required String senderId,
@@ -1316,19 +1323,24 @@ class FirestoreService extends ChangeNotifier {
     required String text,
   }) async {
     final now = FieldValue.serverTimestamp();
-    await _db.collection('chatGroups').doc(groupId)
-        .collection('messages').add({
+    final batch = _db.batch();
+    // Create message document
+    final msgRef = _db.collection('chatGroups').doc(groupId)
+        .collection('messages').doc();
+    batch.set(msgRef, {
       'senderId': senderId,
       'senderName': senderName,
       'text': text,
       'createdAt': now,
     });
-    // Update group's last message
-    await _db.collection('chatGroups').doc(groupId).update({
+    // Update group metadata in same batch
+    final groupRef = _db.collection('chatGroups').doc(groupId);
+    batch.update(groupRef, {
       'lastMessage': '$senderName: $text',
       'lastMessageAt': now,
       'updatedAt': now,
     });
+    await batch.commit();
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -1445,9 +1457,15 @@ class FirestoreService extends ChangeNotifier {
     }
   }
 
-  /// Join a chat group
+  /// Join a chat group (checks membership first to avoid count desync)
   Future<void> joinChatGroup(String groupId, String userId) async {
     try {
+      final doc = await _db.collection('chatGroups').doc(groupId).get();
+      final members = List<String>.from(doc.data()?['members'] ?? []);
+      if (members.contains(userId)) {
+        debugPrint('[FirestoreService] User $userId already in group $groupId');
+        return;
+      }
       await _db.collection('chatGroups').doc(groupId).update({
         'members': FieldValue.arrayUnion([userId]),
         'memberCount': FieldValue.increment(1),
@@ -1460,9 +1478,15 @@ class FirestoreService extends ChangeNotifier {
     }
   }
 
-  /// Leave a chat group
+  /// Leave a chat group (checks membership first to avoid count desync)
   Future<void> leaveChatGroup(String groupId, String userId) async {
     try {
+      final doc = await _db.collection('chatGroups').doc(groupId).get();
+      final members = List<String>.from(doc.data()?['members'] ?? []);
+      if (!members.contains(userId)) {
+        debugPrint('[FirestoreService] User $userId not in group $groupId');
+        return;
+      }
       await _db.collection('chatGroups').doc(groupId).update({
         'members': FieldValue.arrayRemove([userId]),
         'memberCount': FieldValue.increment(-1),

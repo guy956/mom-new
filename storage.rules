@@ -64,12 +64,16 @@ service firebase.storage {
       allow write: if isAuthenticated() && (isOwner(userId) || isAdmin());
     }
 
-    // Chat attachments - participants only
-    match /chat_attachments/{chatId}/{allPaths=**} {
-      allow read: if isAuthenticated() && 
-        firestore.exists(/databases/(default)/documents/chats/$(chatId)/participants/$(request.auth.uid));
-      allow write: if isAuthenticated() && 
-        firestore.exists(/databases/(default)/documents/chats/$(chatId)/participants/$(request.auth.uid));
+    // DM chat attachments - participants only
+    match /chat_attachments/dm/{convId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Group chat attachments - group members only
+    match /chat_attachments/group/{groupId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
     
     // Default deny all other paths

@@ -92,11 +92,23 @@ class FirestoreCollections {
   /// Push notifications history
   static const String pushNotifications = 'push_notifications';
   
-  /// Chat rooms collection
-  static const String chats = 'chats';
-  
+  /// Chat groups collection
+  static const String chatGroups = 'chatGroups';
+
+  /// Direct messages collection
+  static const String directMessages = 'directMessages';
+
   /// Chat messages subcollection
   static const String chatMessages = 'messages';
+
+  /// Admin notifications collection
+  static const String adminNotifications = 'admin_notifications';
+
+  /// User notifications collection (flat, with userId field)
+  static const String notifications = 'notifications';
+
+  /// FCM token storage collection
+  static const String fcmTokens = 'fcm_tokens';
 
   // ════════════════════════════════════════════════════════════════
   //  DOCUMENT IDs
