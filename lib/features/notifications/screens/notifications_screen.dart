@@ -163,20 +163,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'settings', child: Text('הגדרות התראות')),
                   const PopupMenuItem(value: 'clear', child: Text('נקה הכל')),
                 ],
                 onSelected: (value) {
                   if (value == 'clear') {
                     _showClearConfirmation(userId);
-                  } else if (value == 'settings') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('הגדרות התראות', style: TextStyle(fontFamily: 'Heebo')),
-                        backgroundColor: AppColors.info,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
                   }
                 },
               ),
@@ -401,38 +392,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _markAllAsRead(String userId) {
+  Future<void> _markAllAsRead(String userId) async {
     HapticFeedback.lightImpact();
-    if (userId.isNotEmpty) {
+    if (userId.isEmpty) return;
+    try {
       final fs = Provider.of<FirestoreService>(context, listen: false);
-      fs.markAllNotificationsRead(userId);
+      await fs.markAllNotificationsRead(userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('כל ההתראות סומנו כנקראו'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('שגיאה בסימון ההתראות'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('כל ההתראות סומנו כנקראו'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   void _showClearConfirmation(String userId) {
+    if (userId.isEmpty) return;
+    final fs = Provider.of<FirestoreService>(context, listen: false);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('מחיקת כל ההתראות'),
         content: const Text('האם את בטוחה שברצונך למחוק את כל ההתראות?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('ביטול'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              if (userId.isNotEmpty) {
-                final fs = Provider.of<FirestoreService>(this.context, listen: false);
-                fs.deleteAllNotifications(userId);
-              }
+              Navigator.pop(dialogContext);
+              fs.deleteAllNotifications(userId);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,

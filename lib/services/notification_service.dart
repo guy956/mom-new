@@ -605,7 +605,9 @@ class NotificationService {
           userId: userDoc.id,
           title: '💬 קבוצת צ\'אט חדשה!',
           body: groupName,
-          type: 'new_chat_group',
+          type: 'groupMessage',
+          referenceId: groupId,
+          referenceType: 'chat_group',
           data: {
             'groupId': groupId,
             'groupName': groupName,
@@ -635,7 +637,9 @@ class NotificationService {
           userId: userDoc.id,
           title: '📅 אירוע חדש!',
           body: eventTitle,
-          type: 'new_event',
+          type: 'eventUpdate',
+          referenceId: eventId,
+          referenceType: 'event',
           data: {
             'eventId': eventId,
             ...eventData,
@@ -664,7 +668,9 @@ class NotificationService {
           userId: userDoc.id,
           title: '📝 פוסט חדש בקהילה!',
           body: postContent.length > 100 ? postContent.substring(0, 100) + '...' : postContent,
-          type: 'new_post',
+          type: 'comment',
+          referenceId: postId,
+          referenceType: 'post',
           data: {
             'postId': postId,
             ...postData,
@@ -693,7 +699,9 @@ class NotificationService {
           userId: userDoc.id,
           title: '🛍️ מוצר חדש במסירות!',
           body: itemTitle,
-          type: 'new_marketplace',
+          type: 'system',
+          referenceId: itemId,
+          referenceType: 'marketplace',
           data: {
             'itemId': itemId,
             ...itemData,
@@ -713,6 +721,8 @@ class NotificationService {
     required String title,
     required String body,
     required String type,
+    String? referenceId,
+    String? referenceType,
     Map<String, dynamic>? data,
   }) async {
     try {
@@ -721,6 +731,8 @@ class NotificationService {
         'title': title,
         'body': body,
         'type': type,
+        if (referenceId != null) 'referenceId': referenceId,
+        if (referenceType != null) 'referenceType': referenceType,
         'data': data ?? {},
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
