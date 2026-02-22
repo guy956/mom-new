@@ -101,7 +101,7 @@ The Firebase hosting configuration mirrors the Cloudflare Pages headers and rout
 # ADMIN CONFIGURATION
 # ============================================
 # Comma-separated list of admin emails
-ADMIN_EMAILS=ola.cos85@gmail.com
+ADMIN_EMAILS=admin@momit.co.il
 
 # ============================================
 # JWT SECURITY

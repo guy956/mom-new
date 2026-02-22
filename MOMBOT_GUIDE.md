@@ -328,7 +328,7 @@ FeatureFlagIds.enableAiChat  // true/false
 ## 📞 תמיכה
 
 לשאלות על MomBot:
-- אימייל: ola.cos85@gmail.com
+- אימייל: admin@momit.co.il
 - דרך האפליקציה: Settings → Help → Contact Support
 
 ---

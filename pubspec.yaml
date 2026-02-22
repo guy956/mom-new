@@ -84,7 +84,8 @@ flutter:
   uses-material-design: true
   
   assets:
-    - .env
+    # SECURITY: .env removed from assets - secrets must NOT be bundled in the app binary.
+    # API keys are loaded from Firestore admin_config instead.
     - assets/images/
     - assets/icons/
   

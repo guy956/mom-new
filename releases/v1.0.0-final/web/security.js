@@ -12,8 +12,8 @@ const MOMITSecurity = {
       'https://momit.pages.dev',
       'https://mom-it.com',
       'https://www.mom-it.com',
-      'https://momconnect.co.il',
-      'https://www.momconnect.co.il',
+      'https://momit.co.il',
+      'https://www.momit.co.il',
       'https://momit-8f27d.web.app',
       'https://momit-8f27d.firebaseapp.com'
     ],

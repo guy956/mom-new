@@ -280,4 +280,4 @@ This is the initial release - no migration needed.
 ---
 
 **For detailed commit history, see Git log.**
-**For bug reports and feature requests, contact: ola.cos85@gmail.com**
+**For bug reports and feature requests, contact: admin@momit.co.il**

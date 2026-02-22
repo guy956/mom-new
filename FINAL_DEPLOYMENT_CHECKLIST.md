@@ -136,7 +136,7 @@ npx wrangler pages deploy build/web --project-name=momit
 #### Required Variables Present:
 | Variable | Status | Notes |
 |----------|--------|-------|
-| ADMIN_EMAILS | ✅ | ola.cos85@gmail.com |
+| ADMIN_EMAILS | ✅ | admin@momit.co.il |
 | JWT_ACCESS_SECRET | ⚠️ PLACEHOLDER | Needs update before production |
 | JWT_REFRESH_SECRET | ⚠️ PLACEHOLDER | Needs update before production |
 | API_BASE_URL | ✅ | https://api.momit.app |

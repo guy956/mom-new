@@ -16,6 +16,8 @@ import 'package:mom_connect/services/feature_flag_service.dart';
 import 'package:mom_connect/services/tracking_service.dart';
 import 'package:mom_connect/services/accessibility_service.dart';
 import 'package:mom_connect/services/dynamic_config_service.dart';
+import 'package:mom_connect/services/app_router.dart';
+import 'package:mom_connect/providers/theme_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
@@ -77,17 +79,12 @@ void main() async {
   //  PHASE 2: Initialize core services
   // ════════════════════════════════════════════════════════════════
 
-  // Initialize AuthService with SharedPreferences (CRITICAL - must succeed)
+  // Initialize AuthService with SharedPreferences (idempotent - safe to call multiple times)
   try {
     await AuthService.instance.initialize();
     debugPrint('[MOMIT] ✓ AuthService initialized');
   } catch (e) {
     debugPrint('[MOMIT] ⚠ AuthService init warning: $e');
-    try {
-      await AuthService.instance.initialize();
-    } catch (e2) {
-      debugPrint('[MOMIT] ⚠ AuthService second attempt: $e2');
-    }
   }
 
   // Initialize Accessibility Service
@@ -184,6 +181,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => DynamicConfigService.instance),
         ChangeNotifierProvider(create: (_) => TrackingService()),
         ChangeNotifierProvider.value(value: a11yService),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MomitApp(),
     ),
@@ -228,12 +226,16 @@ class MomitApp extends StatelessWidget {
           // Dynamic app name from Firestore
           title: appConfig.appName,
           debugShowCheckedModeBanner: false,
-          
+
+          // Connect AppRouter for named navigation
+          navigatorKey: navigatorKey,
+          onGenerateRoute: AppRouter.generateRoute,
+
           // Theme with dynamic colors
           theme: effectiveTheme,
           darkTheme: effectiveDarkTheme,
           themeMode: appState.themeMode,
-          
+
           // Apply accessibility font scaling
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);

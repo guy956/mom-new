@@ -9,7 +9,6 @@ export 'core/constants/app_strings.dart';
 export 'core/constants/color_config.dart';
 export 'core/constants/text_config.dart';
 export 'core/theme/app_theme.dart';
-export 'core/theme/dynamic_app_theme.dart';
 export 'core/widgets/common_widgets.dart';
 
 // ──── Widgets ────
@@ -23,7 +22,6 @@ export 'providers/theme_provider.dart';
 export 'middleware/rate_limiter.dart';
 
 // ──── Models ────
-export 'models/app_config_model.dart';
 export 'models/chat_model.dart';
 export 'models/event_model.dart';
 export 'models/feature_flag_model.dart';

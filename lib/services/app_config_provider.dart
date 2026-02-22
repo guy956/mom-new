@@ -125,12 +125,11 @@ class AppConfigProvider extends ChangeNotifier {
   //  STREAM SUBSCRIPTIONS
   // ════════════════════════════════════════════════════════════════
 
-  StreamSubscription? _featureFlagsSub;
+  // Only streams actually consumed by AppConfigProvider's UI consumers.
+  // Feature flags, announcements, and dynamic sections are handled by AppState.
   StreamSubscription? _uiConfigSub;
   StreamSubscription? _textOverridesSub;
   StreamSubscription? _appConfigSub;
-  StreamSubscription? _announcementSub;
-  StreamSubscription? _dynamicSectionsSub;
 
   // ════════════════════════════════════════════════════════════════
   //  INITIALIZATION
@@ -156,18 +155,7 @@ class AppConfigProvider extends ChangeNotifier {
 
     debugPrint('[AppConfigProvider] Connecting to Firestore...');
 
-    // Feature Flags Stream
-    _featureFlagsSub = _db.collection('admin_config').doc('feature_flags').snapshots().listen(
-      (snap) {
-        if (snap.exists) {
-          final data = snap.data() ?? {};
-          _updateFeatureFlags(data);
-        }
-      },
-      onError: (e) => debugPrint('[AppConfigProvider] Feature flags error: $e'),
-    );
-
-    // UI Config Stream
+    // UI Config Stream (colors, layout settings)
     _uiConfigSub = _db.collection('admin_config').doc('ui_config').snapshots().listen(
       (snap) {
         if (snap.exists) {
@@ -200,32 +188,8 @@ class AppConfigProvider extends ChangeNotifier {
       onError: (e) => debugPrint('[AppConfigProvider] App config error: $e'),
     );
 
-    // Announcement Stream
-    _announcementSub = _db.collection('admin_config').doc('announcement').snapshots().listen(
-      (snap) {
-        if (snap.exists) {
-          final data = Map<String, dynamic>.from(snap.data() ?? {});
-          _updateAnnouncement(data);
-        }
-      },
-      onError: (e) => debugPrint('[AppConfigProvider] Announcement error: $e'),
-    );
-
-    // Dynamic Sections Stream
-    _dynamicSectionsSub = _db
-        .collection('dynamic_sections')
-        .where('isActive', isEqualTo: true)
-        .orderBy('order', descending: false)
-        .snapshots()
-        .listen(
-      (snap) {
-        final sections = snap.docs
-            .map((d) => DynamicSectionConfig.fromFirestore(d.id, d.data()))
-            .toList();
-        _updateDynamicSections(sections);
-      },
-      onError: (e) => debugPrint('[AppConfigProvider] Dynamic sections error: $e'),
-    );
+    // Note: Feature flags, announcements, and dynamic sections are
+    // handled exclusively by AppState to avoid duplicate Firestore listeners.
 
     _isConnected = true;
     debugPrint('[AppConfigProvider] Connected to Firestore real-time streams');
@@ -233,12 +197,9 @@ class AppConfigProvider extends ChangeNotifier {
 
   /// Disconnect from Firestore (call on logout)
   void disconnect() {
-    _featureFlagsSub?.cancel();
     _uiConfigSub?.cancel();
     _textOverridesSub?.cancel();
     _appConfigSub?.cancel();
-    _announcementSub?.cancel();
-    _dynamicSectionsSub?.cancel();
     _isConnected = false;
     debugPrint('[AppConfigProvider] Disconnected from Firestore');
   }

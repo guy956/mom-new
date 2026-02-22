@@ -2,9 +2,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Service for sending emails via Mailjet API
 /// Sends admin notifications when users create content requiring approval
+///
+/// Keys are loaded from Firestore (admin_config/api_keys) for production,
+/// with .env fallback for local development only.
 class EmailService {
   static final EmailService _instance = EmailService._internal();
   factory EmailService() => _instance;
@@ -13,16 +17,51 @@ class EmailService {
   /// Mailjet API endpoint
   static const String _mailjetApiUrl = 'https://api.mailjet.com/v3.1/send';
 
-  /// Get Mailjet API key from environment
-  String? get _mailjetApiKey => dotenv.env['MAILJET_API_KEY'];
+  // Cached keys from Firestore
+  String? _cachedMailjetApiKey;
+  String? _cachedMailjetSecretKey;
+  String? _cachedAdminEmail;
+  bool _keysLoaded = false;
 
-  /// Get Mailjet Secret key from environment
-  String? get _mailjetSecretKey => dotenv.env['MAILJET_SECRET_KEY'];
+  /// Load API keys from Firestore, fallback to .env for development
+  Future<void> _ensureKeysLoaded() async {
+    if (_keysLoaded) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('admin_config')
+          .doc('api_keys')
+          .get();
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+        _cachedMailjetApiKey = data['mailjetApiKey']?.toString();
+        _cachedMailjetSecretKey = data['mailjetSecretKey']?.toString();
+        _cachedAdminEmail = data['adminEmail']?.toString();
+        if (_cachedMailjetApiKey != null && _cachedMailjetApiKey!.isNotEmpty) {
+          debugPrint('[EmailService] Keys loaded from Firestore');
+          _keysLoaded = true;
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[EmailService] Firestore key load failed: $e');
+    }
+
+    // Fallback to .env (development only)
+    _cachedMailjetApiKey = dotenv.env['MAILJET_API_KEY'];
+    _cachedMailjetSecretKey = dotenv.env['MAILJET_SECRET_KEY'];
+    _cachedAdminEmail = dotenv.env['ADMIN_EMAILS']?.split(',').first.trim();
+    _keysLoaded = true;
+  }
+
+  /// Get Mailjet API key
+  String? get _mailjetApiKey => _cachedMailjetApiKey;
+
+  /// Get Mailjet Secret key
+  String? get _mailjetSecretKey => _cachedMailjetSecretKey;
 
   /// Admin email address to receive notifications
-  /// Falls back to hardcoded admin email if env variable is not set
-  String get _adminEmail =>
-      dotenv.env['ADMIN_EMAILS']?.split(',').first.trim() ?? 'admin@momit.co.il';
+  String get _adminEmail => _cachedAdminEmail ?? 'admin@momit.co.il';
 
   /// Send notification email to admin
   ///
@@ -39,6 +78,9 @@ class EmailService {
     String? dashboardLink,
   }) async {
     try {
+      // Load keys from Firestore/env on first use
+      await _ensureKeysLoaded();
+
       // Check if Mailjet API keys are configured
       if (_mailjetApiKey == null || _mailjetApiKey!.isEmpty ||
           _mailjetSecretKey == null || _mailjetSecretKey!.isEmpty) {

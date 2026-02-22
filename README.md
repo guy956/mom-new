@@ -356,7 +356,7 @@ Private - All rights reserved.
 
 ## 💬 צור קשר
 
-לשאלות ותמיכה: [ola.cos85@gmail.com](mailto:ola.cos85@gmail.com)
+לשאלות ותמיכה: [admin@momit.co.il](mailto:admin@momit.co.il)
 
 ---
 

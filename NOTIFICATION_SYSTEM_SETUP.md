@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the complete notification and email system implementation for the MOMIT app. The system automatically notifies admin (ola.cos85@gmail.com) when users create content requiring approval.
+This document describes the complete notification and email system implementation for the MOMIT app. The system automatically notifies admin (admin@momit.co.il) when users create content requiring approval.
 
 ---
 
@@ -11,7 +11,7 @@ This document describes the complete notification and email system implementatio
 ### 1. Email Service (`lib/services/email_service.dart`)
 - ✅ SendGrid API integration
 - ✅ Beautiful HTML email templates with Hebrew RTL support
-- ✅ Sends to: ola.cos85@gmail.com
+- ✅ Sends to: admin@momit.co.il
 - ✅ Includes item details and direct link to admin dashboard
 - ✅ Supports multiple content types: events, posts, marketplace, experts, users, reports
 
@@ -135,7 +135,7 @@ await emailService.sendTestEmail();
    - Logs to `activity_log` via `AuditLogService`
 
 4. **EmailService** →
-   - Sends beautiful HTML email to ola.cos85@gmail.com
+   - Sends beautiful HTML email to admin@momit.co.il
    - Email includes item details and dashboard link
 
 5. **Admin Dashboard** →
@@ -311,7 +311,7 @@ The notification widget uses Firestore real-time streams:
 - [ ] Domain/sender email verified in SendGrid
 - [ ] Test email sent successfully
 - [ ] Create test event → Check notification appears
-- [ ] Check email received at ola.cos85@gmail.com
+- [ ] Check email received at admin@momit.co.il
 - [ ] Bell icon shows unread count
 - [ ] Dropdown displays notification
 - [ ] Click notification marks as read

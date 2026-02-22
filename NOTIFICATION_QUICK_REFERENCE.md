@@ -176,7 +176,7 @@ await FirestoreService().createEvent({
 ### Check Results
 ```
 1. ✅ Notification appears in Firestore (admin_notifications)
-2. ✅ Email sent to ola.cos85@gmail.com
+2. ✅ Email sent to admin@momit.co.il
 3. ✅ Bell icon shows unread count
 4. ✅ Dropdown shows notification
 ```
@@ -240,7 +240,7 @@ notifyAdminNewContent('event', data)
 Email Sent       Notification Created
 (SendGrid)       (Firestore)
   ↓                     ↓
-ola.cos85@gmail.com   Bell Icon Updates
+admin@momit.co.il   Bell Icon Updates
 ```
 
 ### Scenario 2: Admin Reviews
@@ -260,7 +260,7 @@ Navigate to Approval Screen
 
 ### Environment Variables (.env)
 ```env
-ADMIN_EMAILS=ola.cos85@gmail.com
+ADMIN_EMAILS=admin@momit.co.il
 SENDGRID_API_KEY=SG.your_key_here
 ```
 
@@ -374,7 +374,7 @@ lib/
 - [x] Bell icon shows count
 - [x] Dropdown displays notifications
 - [x] Mark as read works
-- [x] Email received at ola.cos85@gmail.com
+- [x] Email received at admin@momit.co.il
 - [x] Real-time updates working
 
 ---

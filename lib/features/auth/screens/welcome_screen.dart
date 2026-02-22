@@ -82,7 +82,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Future<void> _doSessionCheck() async {
-    await AuthService.instance.initialize();
+    // AuthService already initialized in main.dart Phase 2 (idempotent - safe if called again)
     final savedSession = await AuthService.instance.getSavedSession();
 
     if (!mounted) return;

@@ -8,7 +8,7 @@ PROJECT_NAME=momit
 DEPLOY_URL=momit.pages.dev
 
 ## Admin Access
-ADMIN_EMAIL=ola.cos85@gmail.com
+ADMIN_EMAIL=admin@momit.co.il
 ADMIN_PASSWORD_HASH=[TO_BE_HASHED_WITH_BCRYPT]
 
 ## Deployment Command

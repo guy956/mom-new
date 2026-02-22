@@ -53,7 +53,7 @@ flutter build appbundle --release
 - ✅ Biometric Auth (configured)
 
 ### 🔐 Admin Login
-- **Email**: ola.cos85@gmail.com
+- **Email**: admin@momit.co.il
 - **Password**: guyavi098@
 
 ### 📁 Project Location

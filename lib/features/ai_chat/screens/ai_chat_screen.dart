@@ -90,17 +90,7 @@ class _AIChatScreenState extends State<AIChatScreen>
   }
 
   Future<void> _loadApiKey() async {
-    // 1. Primary source: .env file
-    final envKey = dotenv.env['GEMINI_API_KEY'];
-    if (envKey != null && envKey.isNotEmpty) {
-      debugPrint('[MomBot] API key loaded from .env');
-      setState(() {
-        _geminiApiKey = envKey;
-      });
-      return;
-    }
-
-    // 2. Fallback: Firestore admin_config
+    // 1. Primary source: Firestore admin_config (secure, server-managed)
     try {
       final doc = await FirebaseFirestore.instance
           .collection('admin_config')
@@ -120,8 +110,18 @@ class _AIChatScreenState extends State<AIChatScreen>
       debugPrint('[MomBot] Error loading API key from Firestore: $e');
     }
 
+    // 2. Fallback: .env file (development only)
+    final envKey = dotenv.env['GEMINI_API_KEY'];
+    if (envKey != null && envKey.isNotEmpty) {
+      debugPrint('[MomBot] API key loaded from .env (dev fallback)');
+      setState(() {
+        _geminiApiKey = envKey;
+      });
+      return;
+    }
+
     // 3. No API key found from any source
-    debugPrint('[MomBot] No API key available from .env or Firestore');
+    debugPrint('[MomBot] No API key available from Firestore or .env');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -2,7 +2,7 @@
 
 ## What Was Built
 
-A complete, production-ready notification and email system that automatically notifies admin (ola.cos85@gmail.com) when users create content requiring approval in the MOMIT app.
+A complete, production-ready notification and email system that automatically notifies admin (admin@momit.co.il) when users create content requiring approval in the MOMIT app.
 
 ---
 
@@ -22,7 +22,7 @@ NotificationService.notifyAdminNewContent()
 EmailService          Firestore Document
 (SendGrid API)        (admin_notifications)
     ↓                       ↓
-ola.cos85@gmail.com   AdminNotificationBell
+admin@momit.co.il   AdminNotificationBell
  (Beautiful HTML)     (Real-time widget)
 ```
 
@@ -266,7 +266,7 @@ match /admin_notifications/{notificationId} {
 ### What Happens:
 
 1. ✅ Firestore document created in `admin_notifications`
-2. ✅ Email sent to ola.cos85@gmail.com via SendGrid
+2. ✅ Email sent to admin@momit.co.il via SendGrid
 3. ✅ Activity logged to `activity_log` collection
 4. ✅ Real-time update in admin dashboard bell icon
 5. ✅ Admin sees unread count badge
@@ -286,7 +286,7 @@ match /admin_notifications/{notificationId} {
 - [ ] Test with `NotificationService().sendTestNotification()`
 - [ ] Test with `EmailService().sendTestEmail()`
 - [ ] Create test event with `status='pending'`
-- [ ] Verify email received at ola.cos85@gmail.com
+- [ ] Verify email received at admin@momit.co.il
 - [ ] Verify notification appears in bell dropdown
 - [ ] Test mark as read functionality
 - [ ] Test delete notification
@@ -384,7 +384,7 @@ StreamBuilder<List<AdminNotification>>(
 
 ```env
 # Required
-ADMIN_EMAILS=ola.cos85@gmail.com
+ADMIN_EMAILS=admin@momit.co.il
 SENDGRID_API_KEY=SG.your_api_key_here
 
 # Optional (already configured)
@@ -515,7 +515,7 @@ All tasks completed:
 ### What Works Right Now:
 
 1. **Content Creation** → Automatically triggers notification
-2. **Email Sending** → Beautiful HTML email to ola.cos85@gmail.com
+2. **Email Sending** → Beautiful HTML email to admin@momit.co.il
 3. **Firestore Storage** → Real-time notification documents
 4. **Dashboard Widget** → Bell icon with unread count badge
 5. **Dropdown Panel** → Scrollable notification list
@@ -587,7 +587,7 @@ If you encounter any problems:
 **The notification system is now fully functional and ready to use!** 🎉
 
 When users create events, posts, marketplace items, or any content requiring approval:
-1. ✅ Email sent to ola.cos85@gmail.com
+1. ✅ Email sent to admin@momit.co.il
 2. ✅ Notification appears in admin dashboard
 3. ✅ Real-time sync with Firestore
 4. ✅ Beautiful UI with Hebrew support

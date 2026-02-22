@@ -15,7 +15,6 @@ export 'constants/text_config.dart';
 
 // Theme
 export 'theme/app_theme.dart';
-export 'theme/dynamic_app_theme.dart';
 
 // Widgets
 export 'widgets/button_widgets.dart';
