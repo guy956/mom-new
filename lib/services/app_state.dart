@@ -19,6 +19,13 @@ import 'package:mom_connect/core/constants/color_config.dart';
 /// [AppConfigProvider]; this class should be used for user session, theme, and
 /// admin state management.
 class AppState extends ChangeNotifier {
+  bool _isDisposed = false;
+
+  /// Safe wrapper to avoid calling notifyListeners() after dispose
+  void _safeNotifyListeners() {
+    if (!_isDisposed) notifyListeners();
+  }
+
   static const String _themeKey = 'momit_theme_mode';
   static const String _userDataKey = 'momit_user_data';
   static const String _notifCountKey = 'momit_notif_count';
@@ -235,7 +242,7 @@ class AppState extends ChangeNotifier {
     TextConfig.updateOverrides(_textOverrides);
     ColorConfig.updateOverrides(_uiConfig);
 
-    notifyListeners();
+    _safeNotifyListeners();
     debugPrint('[AppState] Initialization completed successfully');
     } catch (e, stackTrace) {
       debugPrint('[AppState] Error during initialization: $e');
@@ -261,7 +268,7 @@ class AppState extends ChangeNotifier {
         try {
           _featureFlags = Map<String, bool>.from(flags);
           _prefs?.setString(_featureFlagsKey, jsonEncode(_featureFlags));
-          notifyListeners();
+          _safeNotifyListeners();
           debugPrint('[AppState] Feature flags updated: ${_featureFlags.length} flags');
         } catch (e, stackTrace) {
           debugPrint('[AppState] Error processing feature flags: $e');
@@ -287,7 +294,7 @@ class AppState extends ChangeNotifier {
           clean.remove('createdAt');
           _appConfig = clean;
           _prefs?.setString(_appConfigKey, jsonEncode(_appConfig));
-          notifyListeners();
+          _safeNotifyListeners();
         } catch (e, stackTrace) {
           debugPrint('[AppState] Error processing app config: $e');
           debugPrint('[AppState] Stack trace: $stackTrace');
@@ -309,7 +316,7 @@ class AppState extends ChangeNotifier {
           clean.remove('createdAt');
           _announcement = clean;
           _prefs?.setString(_announcementKey, jsonEncode(_announcement));
-          notifyListeners();
+          _safeNotifyListeners();
         } catch (e, stackTrace) {
           debugPrint('[AppState] Error processing announcement: $e');
           debugPrint('[AppState] Stack trace: $stackTrace');
@@ -332,7 +339,7 @@ class AppState extends ChangeNotifier {
           _uiConfig = clean;
           _prefs?.setString(_uiConfigKey, jsonEncode(_uiConfig));
           ColorConfig.updateOverrides(clean);
-          notifyListeners();
+          _safeNotifyListeners();
         } catch (e, stackTrace) {
           debugPrint('[AppState] Error processing UI config: $e');
           debugPrint('[AppState] Stack trace: $stackTrace');
@@ -355,7 +362,7 @@ class AppState extends ChangeNotifier {
           _textOverrides = clean;
           _prefs?.setString(_textOverridesKey, jsonEncode(_textOverrides));
           TextConfig.updateOverrides(clean);
-          notifyListeners();
+          _safeNotifyListeners();
         } catch (e, stackTrace) {
           debugPrint('[AppState] Error processing text overrides: $e');
           debugPrint('[AppState] Stack trace: $stackTrace');
@@ -383,44 +390,44 @@ class AppState extends ChangeNotifier {
   void setThemeMode(ThemeMode mode) {
     _themeMode = mode;
     _prefs?.setInt(_themeKey, mode == ThemeMode.dark ? 1 : 0);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void toggleTheme() {
     _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     _prefs?.setInt(_themeKey, _themeMode == ThemeMode.dark ? 1 : 0);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setUser(UserModel? user) {
     _currentUser = user;
     _persistUserData();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setLoading(bool loading) {
     _isLoading = loading;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setNotificationCount(int count) {
     _notificationCount = count;
     _prefs?.setInt(_notifCountKey, count);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void decrementNotificationCount() {
     if (_notificationCount > 0) {
       _notificationCount--;
       _prefs?.setInt(_notifCountKey, _notificationCount);
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   void setMessageCount(int count) {
     _messageCount = count;
     _prefs?.setInt(_msgCountKey, count);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Update user profile fields.
@@ -450,7 +457,7 @@ class AppState extends ChangeNotifier {
       interests: interests ?? _currentUser!.interests,
     );
     _persistUserData();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Add child to current user
@@ -459,7 +466,7 @@ class AppState extends ChangeNotifier {
     final children = List<ChildModel>.from(_currentUser!.children)..add(child);
     _currentUser = _currentUser!.copyWith(children: children);
     _persistUserData();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Remove child from current user
@@ -468,7 +475,7 @@ class AppState extends ChangeNotifier {
     final children = _currentUser!.children.where((c) => c.id != childId).toList();
     _currentUser = _currentUser!.copyWith(children: children);
     _persistUserData();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Update an existing child in-place (preserves order)
@@ -477,44 +484,44 @@ class AppState extends ChangeNotifier {
     final children = _currentUser!.children.map((c) => c.id == updatedChild.id ? updatedChild : c).toList();
     _currentUser = _currentUser!.copyWith(children: children);
     _persistUserData();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // Admin config setters (also write to Firestore via service)
   void setFeatureFlag(String feature, bool enabled) {
     _featureFlags[feature] = enabled;
     _prefs?.setString(_featureFlagsKey, jsonEncode(_featureFlags));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setAllFeatureFlags(Map<String, bool> flags) {
     _featureFlags = Map<String, bool>.from(flags);
     _prefs?.setString(_featureFlagsKey, jsonEncode(_featureFlags));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setAppConfig(Map<String, dynamic> config) {
     _appConfig = Map<String, dynamic>.from(config);
     _prefs?.setString(_appConfigKey, jsonEncode(_appConfig));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void updateAppConfigKey(String key, dynamic value) {
     _appConfig[key] = value;
     _prefs?.setString(_appConfigKey, jsonEncode(_appConfig));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setAnnouncement(Map<String, dynamic> ann) {
     _announcement = Map<String, dynamic>.from(ann);
     _prefs?.setString(_announcementKey, jsonEncode(_announcement));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void setUIConfig(Map<String, dynamic> config) {
     _uiConfig = Map<String, dynamic>.from(config);
     _prefs?.setString(_uiConfigKey, jsonEncode(_uiConfig));
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Logout - clears state AND AuthService session
@@ -528,7 +535,7 @@ class AppState extends ChangeNotifier {
     _prefs?.setInt(_msgCountKey, 0);
     // Also clear the auth session
     AuthService.instance.logout();
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Login as regular user with full data persistence
@@ -545,7 +552,7 @@ class AppState extends ChangeNotifier {
     );
     _persistUserData();
     _addLoginHistoryEntry('login');
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Login from AuthService data (full data)
@@ -553,7 +560,7 @@ class AppState extends ChangeNotifier {
     _currentUser = AuthService.instance.userModelFromData(data);
     _persistUserData();
     _addLoginHistoryEntry('login');
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Login as admin
@@ -570,23 +577,23 @@ class AppState extends ChangeNotifier {
     );
     _persistUserData();
     _addLoginHistoryEntry('admin_login');
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   // Admin functions
   void addPendingApproval(Map<String, dynamic> item) {
     _pendingApprovals.add(item);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void approveItem(String id) {
     _pendingApprovals.removeWhere((item) => item['id'] == id);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   void rejectItem(String id) {
     _pendingApprovals.removeWhere((item) => item['id'] == id);
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Get all registered users count (from AuthService)
@@ -620,6 +627,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     disconnectFirestore();
     super.dispose();
   }

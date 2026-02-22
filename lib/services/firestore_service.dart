@@ -34,19 +34,6 @@ class FirestoreService extends ChangeNotifier {
         return flags;
       });
 
-  Stream<Map<String, bool>> get moderationSettingsStream =>
-      _db.collection('admin_config').doc('feature_flags').snapshots().map(
-          (snap) {
-        if (!snap.exists) return _defaultModerationSettings;
-        final data = snap.data() ?? {};
-        return {
-          'requireUserApproval': data['requireUserApproval'] ?? true,
-          'autoContentFilter': data['autoContentFilter'] ?? true,
-          'profanityFilter': data['profanityFilter'] ?? true,
-          'requireEventApproval': data['requireEventApproval'] ?? true,
-        };
-      });
-
   Stream<Map<String, dynamic>> get uiConfigStream =>
       _db.collection('admin_config').doc('ui_config').snapshots().map(
           (snap) => snap.exists ? (snap.data() ?? {}) : _defaultUIConfig);
