@@ -694,25 +694,71 @@ class _FeedScreenState extends State<FeedScreen> with SingleTickerProviderStateM
 
   Widget _buildPostContent(Map<String, dynamic> post) {
     final content = (post['content'] ?? '').toString();
-    if (content.isEmpty) return const SizedBox.shrink();
+    final images = post['images'];
+    final hasImages = images is List && images.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            content,
-            style: const TextStyle(
-              fontFamily: 'Heebo',
-              fontSize: 15,
-              height: 1.5,
-              color: AppColors.textPrimary,
+    if (content.isEmpty && !hasImages) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (content.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              content,
+              style: const TextStyle(
+                fontFamily: 'Heebo',
+                fontSize: 15,
+                height: 1.5,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+        if (hasImages) ...[
+          const SizedBox(height: 8),
+          if (images.length == 1)
+            Image.network(
+              images[0].toString(),
+              width: double.infinity,
+              fit: BoxFit.cover,
+              loadingBuilder: (_, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  height: 200,
+                  color: AppColors.surfaceVariant,
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                );
+              },
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            )
+          else
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: images.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: EdgeInsets.only(left: index == 0 ? 0 : 4),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      images[index].toString(),
+                      width: 200,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 200,
+                        color: AppColors.surfaceVariant,
+                        child: const Icon(Icons.broken_image, color: AppColors.textHint),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-      ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -1423,19 +1469,16 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
       // Prepare post data
       final postData = {
         'content': content,
+        'authorId': currentUser?.id ?? '',
         'authorName': _isAnonymous ? 'אנונימית' : userName,
-        'authorImage': '',
+        'authorImage': _isAnonymous ? '' : (currentUser?.profileImage ?? ''),
         'category': _selectedCategory,
         'isAnonymous': _isAnonymous,
         'likes': 0,
         'comments': 0,
+        'likedBy': <String>[],
         'isPinned': false,
         'reportCount': 0,
-        // Add creator info for admin
-        'creatorId': currentUser?.id ?? '',
-        'creatorName': currentUser?.fullName ?? '',
-        'creatorEmail': currentUser?.email ?? '',
-        'creatorPhone': currentUser?.phone ?? '',
       };
 
       // Add uploaded image URL if available
