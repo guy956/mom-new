@@ -624,8 +624,13 @@ class AuthService with RateLimitMixin {
             return AuthResult.failure('החשבון הושעה');
           case 'too-many-requests':
             return AuthResult.failure('יותר מדי ניסיונות - נסי שוב מאוחר יותר');
+          case 'operation-not-allowed':
+            return AuthResult.failure('שגיאה: Email/Password לא מופעל ב-Firebase Console. הפעל אותו ב-Authentication > Sign-in method');
+          case 'network-request-failed':
+            return AuthResult.failure('שגיאת רשת - בדוק חיבור אינטרנט');
           default:
-            return AuthResult.failure('שגיאה בהתחברות: ${e.message}');
+            debugPrint('[AuthService] Firebase Auth error code: ${e.code}, message: ${e.message}');
+            return AuthResult.failure('שגיאה בהתחברות (${e.code}): ${e.message}');
         }
       }
 
